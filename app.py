@@ -5,10 +5,9 @@ import pandas as pd
 import csv
 import os
 import copy
-from dotenv import load_dotenv
 import os
 
-load_dotenv('.env')
+
 # username = os.getenv('username')
 # password = os.getenv('password')
 # schema_name = os.getenv('schema_name')

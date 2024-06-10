@@ -1,0 +1,26 @@
+@media only screen and (max-width:992px) {
+    .css-form {
+
+        width: 100%;
+    }
+
+}
+
+@media only screen and (max-width:767px) {
+
+    .header-flex-one {
+        width: auto !important;
+    }
+
+    .header-flex-three {
+        width: auto;
+    }
+
+    .header-flex-two {
+        display: none;
+    }
+
+    .header-conmtainer-align {
+        padding: 10px 10px;
+    }
+}

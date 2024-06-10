@@ -1,0 +1,28 @@
+Date,User Info,User Question,Response Type,SQL Query,AI Response,Feedback,Feedback Type,Comment
+2024-06-05 13:42:50,,How many rows are present in the Manufacturer table,Natural Language Response,SELECT count(*)FROM healthcare. manufacturer;,Your Response: There are 47 rows in the Manufacturer table.,positive,,
+2024-06-05 13:59:57,,How many rows are present in the Manufacturer table,Natural Language Response,SELECT COUNT(*) FROM healthcare.manufacturer;,Your Response: The Manufacturer table has 47 rows.,Negative,Other,other
+2024-06-05 14:00:26,,How many rows are present in the Manufacturer table,Natural Language Response,SELECT COUNT(*) FROM healthcare.manufacturer;,Your Response: The Manufacturer table has 47 rows.,positive,,
+2024-06-05 14:00:34,,How many rows are present in the Manufacturer table,Natural Language Response,SELECT COUNT(*) FROM healthcare.manufacturer;,Your Response: The Manufacturer table has 47 rows.,Negative,Other,testing
+2024-06-05 15:03:13,,How many rows are present in the doctor table?,Natural Language Response,SELECT COUNT(*) FROM healthcare.doctor;,Your Response: There are 10 rows in the doctor table.,positive,,
+2024-06-05 15:03:18,,How many rows are present in the doctor table?,Natural Language Response,SELECT COUNT(*) FROM healthcare.doctor;,Your Response: There are 10 rows in the doctor table.,Negative,Other,
+2024-06-05 20:31:13,,What is the license number of doctor Carly?,Natural Language Response,"SELECT License_Number
+FROM public. doctor
+WHERE First_Name = 'Carly';",The license number of doctor Carly is 120.,positive,,
+2024-06-05 20:32:08,,list out the distinct value in specialization,Table Format Response,SELECT DISTINCT SpecializationFROM public.doctor;,"Ortho
+Surgeon
+Pediatrician
+Cardio
+Dentist",Negative,Other,testing
+2024-06-06 18:11:20,,List the doctors with missing phone numbers.,Table Format Response,"SELECT *
+FROM public.doctor
+WHERE Phone = ''","112	Elaine	Filipczynski	Ortho	
+120	Carly	Panons	Ortho	
+144	Beitris	Guinnane	Ortho	",positive,,
+2024-06-06 18:33:32,,what is the phone number of patient Win,Natural Language Response,"SELECT Phone
+FROM public.patient
+WHERE First_Name = 'Win';",The phone number of patient Win is 536-996-9836.,Negative,Other,test
+2024-06-07 16:35:28,,List the doctors with missing phone numbers.,Table Format Response,"SELECT *
+FROM public.doctor
+WHERE Phone = '';","112	Elaine	Filipczynski	Ortho	
+120	Carly	Panons	Ortho	
+144	Beitris	Guinnane	Ortho	",Negative,Other,

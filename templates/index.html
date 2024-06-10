@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <!-- favicon -->
+    <link rel="icon" type="image/x-icon" href="static/images/fipsar-head.png">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fipsar IT Solutions</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap/css/bootstrap.min.css') }}">
+    <!-- Optional Bootstrap Icons -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap-icons/bootstrap-icons.css') }}">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Your Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+</head>
+
+<body>
+
+    <header>
+        <div class="container header-conmtainer-align">
+            <div class="header-flexing">
+                <div class="header-flex-one">
+                    <img src="{{ url_for('static', filename='images/favicon.jpg') }}" width="135px">
+                </div>
+                <div class="header-flex-two">
+                    <h4 class="h4-headers" style="margin-bottom: 0px;">Conversational AI on Structured Database</h4>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container css-form mt-5">
+        <div class="chat-container">
+            <div class="whole-css">
+                <div class="forms mt-3">
+                    <form id="chat" action="/chat" , method="post" enctype="multipart/form-data" autocomplete="on">
+                        <div class="mb-3">
+                            <label class="form-label">Select Your Database</label>
+                            <select class="form-select" aria-label="Default Select example">
+                                <option selected>Healthcare Database</option>
+
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Enter Your Question</label>
+                            <div class="search-all-ic">
+                                <div class="input-group">
+                                    <input type="text" id="chatInput" name="chatInput" class="form-control input-con"
+                                        placeholder="Type here..." autocomplete="on">
+                                    <button type="button" class="input-group-text span-s"
+                                        onclick="toggleSpeechRecognition()">
+
+                                        <i id="mic_icon" class="fa fa-microphone" style="font-size: 20px;"></i>
+                                        <i id="soundwave_icon" class="bi bi-soundwave"
+                                            style="display: none; font-size: 20px;"></i>
+                                    </button>
+                                    &nbsp;
+                                    <span id="actions"></span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="button-side mt-4 mb-4">
+                            <div id="sbmt_btn">
+                                <button class="btn btn-sub" type="submit" onclick="showLoader();">Submit</button>
+                            </div>
+                        </div>
+                        <div class="ask-new-qun-rel">
+                            <div class="ask-new-qun-ab">
+                                <input type="hidden" id="chatType" name="chat_type" value="{{chat_type}}">
+                                <button class="btn btn-sub-ask" type="button" id="toggleButton">{{"New Question" if
+                                    chat_type == "follow_up" else ("Ask Follow up" if chat_type == "new") }}</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <div class="loader" id="loader" style="display: none;">
+                    <div class="cs-loader">
+                        <div class="cs-loader-inner">
+                            <label style="color: #0b3396;">●</label>
+                            <label style="color: #0b3396;">●</label>
+                            <label style="color: #0b3396;">●</label>
+                            <label style="color: #0b3396;">●</label>
+                            <label style="color: #0b3396;">●</label>
+                            <label style="color: #0b3396;">●</la●el>
+
+                        </div>
+                    </div>
+                </div>
+                {% if response %}
+                <input type="hidden" id="responseValue" value="{{ response }}">
+
+                <div class="mt-5 response_new">
+                    {% if response.error_message %}
+                    <div class="mt-3">
+                        <!-- <strong>AI Response:</strong> -->
+                        <p>AI Response:</p>
+                        <strong class="mt-3">{{ response.error_message | safe }}</strong>
+                    </div>
+                    {% else %}
+                    <div class="mt-3" id="response-container">
+                        <!-- <strong>User Question:</strong> -->
+                        <p>User Question:</p>
+                        <strong class="mt-3" id="user-ques">{{ response['input'] | safe }}</strong>
+                        {% if response['sql_query'] %}
+                        <div class="copy-button-aig">
+                            <!-- <div><strong>SQL Query:<strong><div> -->
+                            <div id="btn_see_sql" style="padding-top: 10px; padding-bottom: 15px;">
+                                <button class="btn btn-sub-show" style="background-color: grey; color: white;">Show SQL
+                                </button>
+                            </div>
+                            <div id="btn_hide_sql" style="display: none; padding-top: 10px; padding-bottom: 15px;">
+                                <button class="btn btn-sub-hide" style="background-color: grey; color: white;">Hide SQL
+                                </button>
+                            </div>
+                            <button class="btn" id="query_copy_icon" onclick="copyContent()" style="display: none;">
+                                <i class="fa fa-clone" id="clipboard_icon_sql"></i>
+                                <i class="fa fa-check" id="tick_icon_sql"
+                                    style="display: none; color: #0b3396;border: #0b3396;"></i>
+                            </button>
+
+                        </div>
+                        <p class="mt-3 copy-content" id="view_sql" style="display:none;">{{ response['sql_query'] |
+                            safe }}</p>
+                        {% endif %}
+                        {% if response.output == "Visualization Generated" %}
+                        <!-- <strong>AI Response:<strong> -->
+                        <p>AI Response:</p>
+                        <div class="mt-3">
+                            <div id="visuals">
+                                <button class="btn btn-sub"
+                                    onclick="openVisualization('{{ response.chart_filename }}')">Open Visualization
+                                </button>
+                            </div>
+                            <div class="button-alignse mt-2 mb-2">
+                                <button class="btn btn-hovers-up" style="font-size: 20px;"
+                                    onclick="recordFeedback('Positive')"><i class="fa fa-thumbs-up"></i></button>
+                                <button class="btn btn-hovers-down" id="thumbsDownBtn" style="font-size: 20px;"><i
+                                        class="fa fa-thumbs-down"></i></button>
+                            </div>
+                            <div class="thumbs-iup-p text-center" style="display: none;">
+                                <p class="blink">Feedback Submitted Successfully...!</p>
+                            </div>
+                            <div class="thuumbs-p-sugg " id="thumbsDownDiv" style="display: none;">
+                                <p style="font-weight: bolder;">Why do you choose this rating?</p>
+                                <div class="checkbox-flexing mb-3">
+                                    <div class="form-check">
+                                        <label class="form-check-label" style="font-weight: 500;">
+                                            <input class="form-check-input" type="checkbox" id="incorrectSqlCheckbox">
+                                            Incorrect SQL Query
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <label class="form-check-label" style="font-weight: 500;">
+                                            <input class="form-check-input" type="checkbox" id="otherCheckbox">
+                                            Other
+                                        </label>
+                                    </div>
+                                </div>
+                                <textarea class="form-control mb-3" id="feedbackComment"
+                                    placeholder="Feedback"></textarea>
+                                <div class="text-center">
+                                    <button class="btn btn-sub" onclick="recordFeedback('Negative')">Submit</button>
+                                </div>
+
+                            </div>
+                        </div>
+                        {% else %}
+
+                        <div class="copy-button-aig">
+                            <!-- <div> <strong>AI Response:<strong></div> -->
+                            <p>AI Response:</p>
+                            <div class="align-fr-copy-two">
+                                <button class="btn btn-volumne" id="speak"
+                                    onclick="tellResponse(`{{response.output}}`)"><i class="fa fa-volume-up"
+                                        aria-hidden="true"></i>
+                                </button>
+                                <button class="btn" onclick="copyContentsAndMore()">
+                                    <i class="fa fa-clone" id="clipboard_icon"></i>
+                                    <i class="fa fa-check" id="tick_icon"
+                                        style="display: none;color: #0687ce;border: #0687ce"></i>
+                                </button>
+                            </div>
+
+                        </div>
+                        <div id="response_text">
+                            <div id="res_text">
+                                <strong class="mt-3 copy-contents">{{ response['output'] | safe }}</strong>
+                            </div>
+
+                        </div>
+                        <div class="button-alignse mt-2 mb-2">
+                            <button class="btn btn-hovers-up" style="font-size: 20px;"
+                                onclick="recordFeedback('positive')"><i class="fa fa-thumbs-up"></i></button>
+                            <button class="btn btn-hovers-down" id="thumbsDownBtn" style="font-size: 20px;"><i
+                                    class="fa fa-thumbs-down"></i></button>
+                        </div>
+                        <div class="thumbs-iup-p text-center" style="display: none;">
+                            <p class="blink">Feedback submitted successfully..!</p>
+                        </div>
+                        <div class="thuumbs-p-sugg " id="thumbsDownDiv" style="display: none;">
+                            <p style="font-weight: bolder;">Why do you choose this rating?</p>
+                            <div class="checkbox-flexing mb-3">
+                                <div class="form-check">
+                                    <label class="form-check-label" style="font-weight: 500;">
+                                        <input class="form-check-input" type="checkbox" id="incorrectSqlCheckbox">
+                                        Incorrect SQL Query
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <label class="form-check-label" style="font-weight: 500;">
+                                        <input class="form-check-input" type="checkbox" id="'otherCheckbox">
+                                        other
+                                    </label>
+                                </div>
+                            </div>
+                            <textarea class="form-control mb-3" id="feedbackComment" placeholder="Feedback"></textarea>
+                            <div class="text-center">
+                                <button class="btn btn-sub" onclick="recordFeedback('Negative')">Submit</button>
+                            </div>
+
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    <textarea id="response-textarea" class="form-control" rows="10" readonly
+                        style="display: none;"> </textarea>
+                </div>
+
+                {% endif %}
+
+                <script>
+                    document.getElementById('toggleButton').addEventListener("click", function () {
+                        var button = document.getElementById('toggleButton');
+                        var chatTypeInput = document.getElementById("chatType");
+                        console.log(chatTypeInput.value)
+                        if (chatTypeInput.value === 'follow_up') {
+                            chatTypeInput.value = 'new'
+                            button.textContent = 'Ask Follow up';
+                        } else if (chatTypeInput.value === 'new') {
+                            chatTypeInput.value = 'follow_up'
+                            button.textContent = 'New Question';
+                        }
+                        console.log(chatTypeInput.value)
+                    })
+                </script>
+
+                <script>
+                    function showLoader() {
+                        $("#loader").show(); // show the loader
+                    }
+                    function hideLoader() {
+                        $("#loader").hide(); // hide the loader
+                    }
+                </script>
+
+                <script>
+                    function validateForm() {
+                        var databaseSelect = document.querySelector('select');
+                        var questionInput = document.getElementById('chatInput');
+
+                        if (databaseSelect.selectedIndex == -1) {
+                            alert('Please select a database');
+                            return false;
+                        }
+
+                        if (questionInput.value.trim() == '') {
+                            alert('Please enter your question');
+                            return false;
+                        }
+                        return true
+                    }
+                </script>
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const thumbsDownBtn = document.getElementById('thumbsDownBtn');
+                        const thumbsDownDiv = document.getElementById('thumbsDownDiv');
+                        const incorrectSqlCheckbox = document.getElementById('incorrectSqlCheckbox');
+                        const otherCheckbox = document.getElementById('otherCheckbox');
+                        const feedbackComment = document.getElementById('feedbackComment');
+
+                        thumbsDownBtn.addEventListener('click', function () {
+                            if (thumbsDownDiv.style.display === 'none') {
+                                thumbsDownDiv.style.display = 'block';
+                            } else {
+                                thumbsDownDiv.style.display = 'none';
+                            }
+                        });
+
+                        window.recordFeedback = function (feedback) {
+                            let feedbackType = "";
+                            if (feedback === 'Negative') {
+                                if (incorrectSqlCheckbox && otherCheckbox) {
+                                    if (incorrectSqlCheckbox.checked && otherCheckbox.checked) {
+                                        feedbackType = "Incorrect SQL Query & Other";
+                                    } else if (otherCheckbox.checked) {
+                                        feedbackType = "Other";
+                                    } else if (incorrectSqlCheckbox.checked) {
+                                        feedbackType = "Incorrect SQL Query";
+                                    } else {
+                                        feedbackType = 'Other';
+                                    }
+                                } else {
+                                    feedbackType = 'Other';
+                                }
+                            }
+
+                            const userQuestion = document.querySelector('#user-ques').innerText;
+                            const sqlQueryElement = document.querySelector('.copy-content');
+                            const sqlQuery = sqlQueryElement ? sqlQueryElement.innerText : '';
+                            const aiResponseElement = document.querySelector('#res_text');
+                            const aiResponse = aiResponseElement ? aiResponseElement.innerText : '';
+                            const comment = feedback === 'Negative' ? feedbackComment.value : "";
+
+                            const feedbackData = {
+                                userQuestion: userQuestion,
+                                sqlQuery: sqlQuery,
+                                aiResponse: aiResponse,
+                                feedback: feedback,
+                                feedbackType: feedbackType,
+                                comment: comment
+                            };
+
+                            fetch('/record_feedback', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                },
+                                body: JSON.stringify(feedbackData),
+                            })
+                                .then(response => response.json())
+                                .then(data => {
+                                    console.log('Feedback recorded successfully', data);
+                                    showFeedbackSubmittedMessage();
+                                })
+                                .catch((error) => {
+                                    console.error('Error recording feedback', error);
+                                });
+
+                            console.log("User Question:", userQuestion);
+                            console.log("SQL Query:", sqlQuery);
+                            console.log("AI Response:", aiResponse);
+                            console.log("Feedback:", feedback);
+                            console.log("Feedback Type:", feedbackType);
+                            console.log("Comment:", comment);
+
+                            thumbsDownDiv.style.display = 'none';
+                        }
+
+                        function showFeedbackSubmittedMessage() {
+                            const thumbsUpMessage = document.querySelector('.thumbs-iup-p');
+                            thumbsUpMessage.style.display = 'block';
+                            setTimeout(function () {
+                                thumbsUpMessage.style.display = 'none';
+                            }, 3000);
+                        }
+
+                        // Assuming there is a button with id 'submitFeedback' to trigger the feedback submission
+                        const submitFeedbackButton = document.getElementById('submitFeedback');
+                        if (submitFeedbackButton) {
+                            submitFeedbackButton.addEventListener('click', function () {
+                                recordFeedback('Negative');
+                            });
+                        }
+                    });
+
+                </script>
+
+
+                <script>
+                    const seeSql = document.getElementById('btn_see_sql');
+                    const sqlRes = document.getElementById('view_sql');
+                    const hideSql = document.getElementById('btn_hide_sql');
+                    const query_copy = document.getElementById('query_copy_icon');
+
+                    seeSql.addEventListener('click', function () {
+                        if (sqlRes.style.display === 'none') {
+                            sqlRes.style.display = 'block';
+                            query_copy.style.display = 'block';
+                            hideSql.style.display = 'block';
+                            seeSql.style.display = 'none';
+                        }
+                    });
+                    hideSql.addEventListener('click', function () {
+                        if (sqlRes.style.display === 'block') {
+                            sqlRes.style.display = 'none';
+                            query_copy.style.display = 'none';
+                            hideSql.style.display = 'none';
+                            seeSql.style.display = 'block';
+
+                        }
+                    });
+                </script>
+
+
+                <script>
+                    function speakResponse(text) {
+                        console.log('Speaking the response');
+                        const speech = new SpeechSynthesisUtterance();
+                        speech.text = text;
+                        speech.volume = 1;
+                        speech.rate = 1;
+                        speech.pitch = 1;
+
+                        if ('speechSynthesis' in window) {
+                            window.speechSynthesis.onvoiceschanged = () => {
+                                const voices = speechSynthesis.getVoices();
+                                speech.voice = voices.find(voice => voice.name.includes('Google UK English Female')
+                                    || voice.name.includes('Microsoft Zira - English (United States)'));
+                                speech.onend = function () {
+                                    sessionStorage.setItem('isSpeechQuestion', 'false')
+                                };
+                                window.speechSynthesis.speak(speech);
+                            };
+                        }
+                    }
+
+                    function automate_text(responseText) {
+                        console.log('Automate_text_activated');
+                        speakResponse(responseText);
+                    }
+
+                    function handleSpeechInput(transcript) {
+                        document.getElementById('chatInput').value = transcript;
+                        sessionStorage.setItem('isSpeechQuestion', 'true')
+                    }
+                    let recognition;
+                    let isListening = false;
+
+                    function toggleSpeechRecognition() {
+                        if (!isListening) {
+                            startSpeechRecognition();
+                        } else {
+                            endSpeechRecognition();
+                        }
+                    }
+
+                    function startSpeechRecognition() {
+                        if (!recognition) {
+                            if ('webkitSpeechRecognition' in window) {
+                                recognition = new webkitSpeechRecognition();
+                            } else if ('SpeechRecognition' in window) {
+                                recognition = new SpeechRecognition();
+                            } else {
+                                console.error('Speech recognition not supported in this browser');
+                                return;
+                            }
+                            recognition.onresult = function (event) {
+                                const transcript = event.results[0][0].transcript;
+                                handleSpeechInput(transcript);
+                            };
+                            recognition.onerror = function (event) {
+                                console.error('Speech recognition error:', event.error);
+                                alert('Speech recognition error:' + event.error);
+                                endSpeechRecognition()
+                            };
+                            recognition.onend = function () {
+                                document.getElementById('mic_icon').style.display = 'inline';
+                                document.getElementById('soundwave_icon').style.display = 'none';
+                                var elements = document.getElementsByClassName('span-s');
+                                for (var i = 0; i < elements.length; i++) {
+                                    elements[i].style.backgroundColor = '#0b3396';
+                                }
+                                isListening = false;
+                            };
+                        }
+                        document.getElementById('mic_icon').style.display = 'none';
+                        document.getElementById('soundwave_icon').style.display = 'inline';
+                        var elements = document.getElementsByClassName('span-s');
+                        for (var i = 0; i < elements.length; i++) {
+                            elements[i].style.backgroundColor = 'red';
+                        }
+                        recognition.start();
+                        isListening = true;
+                    }
+
+                    function endSpeechRecognition() {
+                        if (recognition) {
+                            recognition.stop();
+                        }
+                        document.getElementById('mic_icon').style.display = 'inline';
+                        document.getElementById('soundwave_icon').style.display = 'none';
+                        var elements = document.getElementsByClassName('span-s');
+                        for (var i = 0; i < elements.length; i++) {
+                            elements[i].style.backgroundColor = '#0b3396';
+                        }
+                        isListening = false;
+                    }
+
+                    document.getElementById('soundwave_icon').addEventListener('click', function () {
+                        endSpeechRecognition();
+
+                    });
+
+                    window.onload = function () {
+                        const responseElement = document.getElementById('res_text');
+                        const visualsElement = document.getElementById('visuals');
+                        const isSpeechQuestion = sessionStorage.getItem('isSpeechQuestion') === 'true';
+
+                        let textToSpeak = "";
+                        if (responseElement) {
+                            const responseText = responseElement.innerText.trim();
+                            const tablePresent = responseElement.querySelector('table') !== null;
+                            if (tablePresent) {
+                                textToSpeak = "Please find the response below";
+                            } else {
+                                textToSpeak = responseText;
+                            }
+
+                        }
+
+                        if (visualsElement && visualsElement.innerHTML.trim() != '') {
+                            textToSpeak = "Please click the open visualization button to view the chart";
+                        }
+                        if (textToSpeak && isSpeechQuestion) {
+                            automate_text(textToSpeak);
+                        }
+
+                    };
+
+                    document.getElementById('chat').addEventListener('submit', function () {
+                        if (!sessionStorage.getItem('isSpeechQuestion')) {
+                            sessionStorage.setItem('isSpeechQuestion', 'false')
+                        }
+                    })
+                </script>
+
+                <script>
+                    // function sanitizeHTML(text) {
+                    //     const tempElement = document.createElement('div');
+                    //     tempElement.innerHTML = text;
+                    //     return tempElement.textContent || tempElement.innerText || '';
+
+                    // }
+
+                    // function tellResponse(text) {
+                    //     console.log('Entered into tell response functn');
+                    //     const speechSynthesis = window.speechSynthesis;
+                    //     const speechText = new SpeechSynthesisUtterance();
+                    //     speechText.text = sanitizeHTML(text);
+
+                    //     const voices = speechSynthesis.getVoices();
+                    //     if (voices.length === 0) {
+                    //         speechSynthesis.addEventListener('voicechanged', function () {
+                    //             const updateVoices = speechSynthesis.getVoices();
+                    //             const femaleVoice = updatedVoices.find(voice => voice.name.includes('Zira'));
+                    //             speechText.voice = femaleVoice;
+                    //             speechSynthesis.speak(speechText);
+                    //         });
+
+                    //     } else {
+                    //         const femaleVoice = voices.find(voice => voice.name.includes('Zira'));
+                    //         speechText.voice = femaleVoice;
+                    //         speechSynthesis.speak(speechText);
+                    //     }
+                    // }
+                    function sanitizeHTML(text) {
+                        const tempElement = document.createElement('div');
+                        tempElement.innerHTML = text;
+                        return tempElement.textContent || tempElement.innerText || '';
+                    }
+                    function tellResponse(text) {
+                        console.log('Entered into tell response function');
+                        const speechSynthesis = window.speechSynthesis;
+                        const speechText = new SpeechSynthesisUtterance();
+                        // const responseElement = document.getElementById('res_text');
+                        // const tablePresent = responseElement.querySelector('table') !== null;
+                        // if (responseElement){
+                        //     speechText.text = sanitizeHTML(text);
+                        // }
+                        // if(tablePresent) {
+                        //     speechText.text = sanitizeHTML('Please find the response below');
+                        // }
+
+                        const responseElement = document.getElementById('res_text');
+                        const visualsElement = document.getElementById('visuals');
+
+                        let textToSpeak = "";
+                        if (responseElement) {
+                            const responseText = responseElement.innerText.trim();
+                            const tablePresent = responseElement.querySelector('table') !== null;
+                            if (tablePresent) {
+                                textToSpeak = "Please find the response below";
+                                speechText.text = sanitizeHTML(textToSpeak);
+                            } else {
+                                textToSpeak = responseText;
+                                speechText.text = sanitizeHTML(textToSpeak);
+                            }
+
+                        }
+                        function speak() {
+                            const voices = speechSynthesis.getVoices();
+                            const femaleVoice = voices.find(voice => voice.name.includes('Zira'));
+                            if (femaleVoice) {
+                                speechText.voice = femaleVoice;
+                                speechSynthesis.speak(speechText);
+                            } else {
+                                console.log('Desired voice not found');
+                            }
+                        }
+
+                        if (speechSynthesis.getVoices().length === 0) {
+                            speechSynthesis.addEventListener('voiceschanged', speak);
+                        } else {
+                            speak();
+                        }
+                    }
+                </script>
+                <!-- Bootstrap Bundle with Popper -->
+                <script src="{{ url_for('static', filename='lib/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
+                <!-- Your Custom JS -->
+                <script src="{{ url_for('static', filename='js/scripts.js') }}"></script>
+</body>
+
+</html>

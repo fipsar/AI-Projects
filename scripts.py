@@ -11,13 +11,16 @@ import matplotlib
 matplotlib.use('Agg')
 import numpy as np
 import openai
+import os
+from dotenv import load_dotenv
 
 
+load_dotenv()
 
 def connection(query):
     conn = mysql.connector.connect(
         user='root',
-        password='yourpassword',
+        password='1234',
         host='localhost',
         port='3306',
         database='healthcare'
@@ -76,7 +79,7 @@ table_info = get_specific_tables_metadata(connection, database_name, schema_name
 
 
 # Initialize OpenAI API key
-openai.api_key = 'your-api-key'
+openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def call_openai_gpt(prompt):
     response = openai.ChatCompletion.create(
@@ -268,10 +271,25 @@ Question: What is the average age of the patients?;
 Answer: 30;
 Your Response: The average age of patients is 30.
 
-
-Question: What is the average age of the patients?;
+Question: How many rows are present in the doctor table ?;
 Answer: 30;
-Your Response: The average age of patients is 30.
+Your Response: There are 20 rows are present in the doctor's table.
+
+Question: Delete the phone numbers for the doctor whose specialization is Cardiology;
+Answer: 4 row(s) affected;
+Your Response: The phone number for the doctor's specialization of Cardioalogy has been deleted.
+
+Question: Update the phone numbers for the doctor whose specialization is Neurology;
+Answer: 3 row(s) affected;
+Your Response: The phone number for the doctor's specialization of Neurology has been updated.
+
+Question: Replace the phone numbers for the doctor whose specialization is Oncology;
+Answer: 10 row(s) affected;
+Your Response: The phone number for the doctor's specialization of Oncology has been updated.
+
+Question: Insert the phone number for the doctor whose specialization is Oncology where it is null.
+Answer: 20 row(s) affected;
+Your Response: The phone number for the doctor's specialization of Oncology has been inserted.
 
 Question: {Input};
 Answer: {out}:

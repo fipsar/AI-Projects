@@ -105,6 +105,8 @@ def chat():
         Input= request.form['chatInput']
         chat_type = request.form['chat_type']
         print('chat type for initalization',chat_type)
+        selected_database = request.form['databaseSelect']
+        print('selected_database for initalization',selected_database)
         
         def process_chat(chat_type,Input):
             global chat_history
@@ -143,7 +145,7 @@ def chat():
                     'error_message' : error_message
                 }
 
-        return render_template('index.html', response= response, chat_type=chat_type)
+        return render_template('index.html', response= response, chat_type=chat_type,selected_database=selected_database)
     
 @app.route('/record_feedback', methods = ['POST'])
 def record_feedback():

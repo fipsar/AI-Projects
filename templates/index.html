@@ -41,9 +41,14 @@
                     <form id="chat" action="/chat" , method="post" enctype="multipart/form-data" autocomplete="on">
                         <div class="mb-3">
                             <label class="form-label">Select Your Database</label>
-                            <select class="form-select" aria-label="Default Select example">
-                                <option selected>Healthcare Database</option>
-
+                            <select class="form-select" id="databaseSelect" name="databaseSelect"
+                                aria-label="Default Select example">
+                                <option value="" disabled {% if selected_database=='' %}selected{% endif %}>Select a
+                                    database</option>
+                                <option value="Healthcare Database" {% if selected_database=='Healthcare Database'
+                                    %}selected{% endif %}>Healthcare Database</option>
+                                <option value="Pharma Database" {% if selected_database=='Pharma Database' %}selected{%
+                                    endif %}>Pharma Database</option>
                             </select>
                         </div>
                         <div class="mb-3">
@@ -233,6 +238,23 @@
                 </div>
 
                 {% endif %}
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', (event) => {
+                        const selectElement = document.getElementById('databaseSelect');
+
+                        selectElement.addEventListener('change', (event) => {
+                            const selectedDatabaseValue = event.target.value;
+
+                            if (selectedDatabaseValue === 'Healthcare Database') {
+                                console.log('Healthcare Database selected');
+                            } else if (selectedDatabaseValue === 'Pharma Database') {
+                                console.log('Pharma Database selected');
+                            }
+                        });
+                    });
+                </script>
+
 
                 <script>
                     document.getElementById('toggleButton').addEventListener("click", function () {

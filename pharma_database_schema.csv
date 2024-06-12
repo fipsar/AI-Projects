@@ -1,0 +1,16 @@
+Schema_name,Table_name,Flag
+public,bill,1
+public,doctor,1
+public,employee,1
+public,manf_supp_contract,1
+public,manufacturer,1
+public,medicine,1
+public,patient,1
+public,tests,1
+public,pharmacy,1
+public,pharmacy_medicines,1
+public,prescribed_medicines,1
+public,prescription,1
+public,supplier,1
+
+

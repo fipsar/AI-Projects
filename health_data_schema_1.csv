@@ -1,9 +1,0 @@
-Schema_name,Table_name,Flag
-healthcare,appointments,1
-healthcare,doctors,1
-healthcare,insurance,1
-healthcare,medications,1
-healthcare,patients,1
-healthcare,pharmacies,1
-healthcare,prescriptions,1
-healthcare,tests,1

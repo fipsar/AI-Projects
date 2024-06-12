@@ -17,7 +17,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-def connection(query):
+def connection_for_healthcare(query):
     conn = mysql.connector.connect(
         user='root',
         password='1234',
@@ -30,8 +30,8 @@ def connection(query):
     cursor.execute(query)
     
     if query.strip().lower().startswith(('update', 'delete', 'insert')):
-        result = conn.commit()
-        # result = f"Query executed successfully: {cursor.rowcount} rows affected."
+        conn.commit()
+        result = f"Query executed successfully: {cursor.rowcount} rows affected."
     else:
         result = cursor.fetchall()
 
@@ -41,7 +41,31 @@ def connection(query):
     return result
 
 
-def get_specific_tables_metadata(connection, database_name, schema_name, tables_df, num_samples = 2):
+def connection_for_pharma(query):
+    conn = mysql.connector.connect(
+        user='root',
+        password='1234',
+        host='localhost',
+        port='3306',
+        database='public'
+    )
+
+    cursor = conn.cursor()
+    cursor.execute(query)
+    
+    if query.strip().lower().startswith(('update', 'delete', 'insert')):
+        conn.commit()
+        result = f"Query executed successfully: {cursor.rowcount} rows affected."
+    else:
+        result = cursor.fetchall()
+
+    # cursor.close()
+    # conn.close()
+    
+    return result
+
+
+def get_specific_tables_metadata(connection_for_healthcare, database_name, schema_name, tables_df, num_samples = 2):
     metadata = ""
     working_tables = tables_df[tables_df['Flag'] == 1]
     
@@ -51,7 +75,7 @@ def get_specific_tables_metadata(connection, database_name, schema_name, tables_
         sql = f"SHOW COLUMNS FROM {schema_name}.{table_name}"
         # sql = f"SHOW COLUMNS FROM TABLE {database_name}.{schema_name}.{table_name}"
         
-        result = connection(sql)
+        result = connection_for_healthcare(sql)
         # result = cursor.fetchall()
         create_table_statement = f"CREATE TABLE {schema_name}.{table_name} ("
         for row in result:
@@ -62,7 +86,7 @@ def get_specific_tables_metadata(connection, database_name, schema_name, tables_
         metadata += create_table_statement + "\n"
 
         sample_sql = f"SELECT * FROM {schema_name}.{table_name} LIMIT {num_samples};"
-        sample_rows = connection(sample_sql)
+        sample_rows = connection_for_healthcare(sample_sql)
 
 
         metadata += f"\nSample rows from {table_name} table:\n"
@@ -72,10 +96,10 @@ def get_specific_tables_metadata(connection, database_name, schema_name, tables_
     return metadata
 
 
-df = pd.read_csv('health_data_schema_1.csv')
+df = pd.read_csv('health_data_schema.csv')
 database_name = 'healthcare'
 schema_name = 'healthcare'
-table_info = get_specific_tables_metadata(connection, database_name, schema_name, df)
+table_info_health = get_specific_tables_metadata(connection_for_healthcare, database_name, schema_name, df)
 
 
 # Initialize OpenAI API key
@@ -83,7 +107,7 @@ openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def call_openai_gpt(prompt):
     response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",  # Specify the model
+        model="gpt-4-turbo",  # Specify the model
         messages=[
             {"role": "user", "content": prompt}
         ],
@@ -152,7 +176,7 @@ def sql_query_generator(Input, schema_name=schema_name):
     *For this problem you can use the following table schema:
 
     **table_schema**
-    {table_info}
+    {table_info_health}
 
     *Please provide the SQL Query for this question:
 
@@ -183,7 +207,7 @@ def sql_query_generator(Input, schema_name=schema_name):
     f"<strong>SQL Query to run:</strong><br>{query}"
 
     # cursor.execute(query)
-    results = connection(query)
+    results = connection_for_healthcare(query)
     print("result :", results)
     f"<strong>Result of SQL Query:</strong><br>{results}"
     return query, results
@@ -261,9 +285,9 @@ def final_result(classification, Input):
 
 Instructions:
 Given a question {Input} and the corresponding answer you should reframe the answer in natural language.
-Don't use words outside scope which is not there in either question or answer. Never give any addittional content in the response.
+Don't use words outside the scope which are not there in either question or answer. Never give any additional content in the response.
 
-Below are the example Questions and its Answer and how you should Response.
+Below are the example Questions and their Answers and how you should Respond.
 
 Example:
 
@@ -271,30 +295,30 @@ Question: What is the average age of the patients?;
 Answer: 30;
 Your Response: The average age of patients is 30.
 
-Question: How many rows are present in the doctor table ?;
-Answer: 30;
-Your Response: There are 20 rows are present in the doctor's table.
+Question: How many rows are present in the doctor table?;
+Answer: 20;
+Your Response: There are 20 rows present in the doctor's table.
 
 Question: Delete the phone numbers for the doctor whose specialization is Cardiology;
-Answer: 4 row(s) affected;
-Your Response: The phone number for the doctor's specialization of Cardioalogy has been deleted.
+Answer: Query executed successfully: 4 rows affected.
+Your Response: The phone number for the doctor whose specialization is Cardiology has been deleted.
 
 Question: Update the phone numbers for the doctor whose specialization is Neurology;
-Answer: 3 row(s) affected;
-Your Response: The phone number for the doctor's specialization of Neurology has been updated.
+Answer: Query executed successfully: 10 rows affected.
+Your Response: The phone number for the doctor whose specialization is Neurology has been updated.
 
 Question: Replace the phone numbers for the doctor whose specialization is Oncology;
-Answer: 10 row(s) affected;
-Your Response: The phone number for the doctor's specialization of Oncology has been updated.
+Answer: Query executed successfully: 15 rows affected.
+Your Response: The phone number for the doctor whose specialization is Oncology has been replaced.
 
-Question: Insert the phone number for the doctor whose specialization is Oncology where it is null.
-Answer: 20 row(s) affected;
-Your Response: The phone number for the doctor's specialization of Oncology has been inserted.
+Question: Insert the phone number for the doctor whose specialization is Oncology where it is null;
+Answer: Query executed successfully: 0 rows affected.
+Your Response: The phone number for the doctor whose specialization is Oncology has been inserted where it was null.
 
 Question: {Input};
-Answer: {out}:
+Answer: {out};
 
-addittional_hints
+additional_hints
 
 You should only give the {'Your Response'} part. Don't give any other comments in the response.
 """

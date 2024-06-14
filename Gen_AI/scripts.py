@@ -13,94 +13,92 @@ import numpy as np
 import openai
 import os
 from dotenv import load_dotenv
+from flask import session
 
 
 load_dotenv()
 
-def connection_for_healthcare(query):
-    conn = mysql.connector.connect(
-        user='root',
-        password='1234',
-        host='localhost',
-        port='3306',
-        database='healthcare'
-    )
-
-    cursor = conn.cursor()
-    cursor.execute(query)
+def connection(query):
+    try:
+        conn = mysql.connector.connect(
+            user='root',
+            password='1234',
+            host='localhost',
+            port='3306',
+            database=session.get('selected_database', 'healthcare')
+        )
+        
+        print('Connected to database:', conn.database)
+        
+        cursor = conn.cursor()
+        cursor.execute(query)
+        
+        if query.strip().lower().startswith(('update', 'delete', 'insert')):
+            conn.commit()
+            result = f"Query executed successfully: {cursor.rowcount} rows affected."
+        else:
+            result = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return result
     
-    if query.strip().lower().startswith(('update', 'delete', 'insert')):
-        conn.commit()
-        result = f"Query executed successfully: {cursor.rowcount} rows affected."
-    else:
-        result = cursor.fetchall()
-
-    # cursor.close()
-    # conn.close()
-    
-    return result
+    except mysql.connector.Error as error:
+        print(f"Error occurred: {error}")
+        return f"Error: {error}"
 
 
-def connection_for_pharma(query):
-    conn = mysql.connector.connect(
-        user='root',
-        password='1234',
-        host='localhost',
-        port='3306',
-        database='public'
-    )
 
-    cursor = conn.cursor()
-    cursor.execute(query)
-    
-    if query.strip().lower().startswith(('update', 'delete', 'insert')):
-        conn.commit()
-        result = f"Query executed successfully: {cursor.rowcount} rows affected."
-    else:
-        result = cursor.fetchall()
-
-    # cursor.close()
-    # conn.close()
-    
-    return result
-
-
-def get_specific_tables_metadata(connection_for_healthcare, database_name, schema_name, tables_df, num_samples = 2):
+def get_specific_tables_metadata(connection, selected_database, schema_name, tables_df, num_samples=2):
+    print('get_specific_tables_metadata database name', selected_database)
     metadata = ""
     working_tables = tables_df[tables_df['Flag'] == 1]
     
     for _, table_row in working_tables.iterrows():
         table_name = table_row['Table_name']
-        metadata += f"\nMetadata for table {database_name}.{schema_name}.{table_name}:\n"
+        metadata += f"\nMetadata for table {selected_database}.{schema_name}.{table_name}:\n"
         sql = f"SHOW COLUMNS FROM {schema_name}.{table_name}"
-        # sql = f"SHOW COLUMNS FROM TABLE {database_name}.{schema_name}.{table_name}"
         
-        result = connection_for_healthcare(sql)
-        # result = cursor.fetchall()
+        result = connection(sql)
         create_table_statement = f"CREATE TABLE {schema_name}.{table_name} ("
         for row in result:
-            column_name = row[0]
-            data_type = row[1]
-            create_table_statement += f"\n {column_name} {data_type},"
+            if selected_database == 'healthcare':
+                column_name = row[0]
+                data_type = row[1]
+                create_table_statement += f"\n {column_name} {data_type},"
+            if selected_database == 'pharma':
+                column_name = row[0]
+                data_type = row[0]
+                create_table_statement += f"\n {column_name} {data_type},"
         create_table_statement = create_table_statement.rstrip(',') + "\n);"
         metadata += create_table_statement + "\n"
 
         sample_sql = f"SELECT * FROM {schema_name}.{table_name} LIMIT {num_samples};"
-        sample_rows = connection_for_healthcare(sample_sql)
-
+        sample_rows = connection(sample_sql)
 
         metadata += f"\nSample rows from {table_name} table:\n"
         for row in sample_rows:
             metadata += str(row) + "\n"
-    # cursor.close()
+    
     return metadata
 
 
-df = pd.read_csv('health_data_schema.csv')
-database_name = 'healthcare'
-schema_name = 'healthcare'
-table_info_health = get_specific_tables_metadata(connection_for_healthcare, database_name, schema_name, df)
+def meta_data(selected_database):
+    healthcare_schema_df = pd.read_csv('health_data_schema.csv')
+    pharma_schema_df = pd.read_csv('pharma_database_schema.csv')
 
+    if selected_database == 'healthcare':
+        schema_name = 'healthcare'
+        df = healthcare_schema_df
+    elif selected_database == 'pharma':
+        schema_name = 'pharma'
+        df = pharma_schema_df
+    else:
+        raise ValueError(f"Unknown database selected: {selected_database}")
+
+    table_info = get_specific_tables_metadata(connection, selected_database, schema_name, df)
+    return table_info, schema_name
 
 # Initialize OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
@@ -159,15 +157,19 @@ Do not strictly write the Input question and Instruction in the output. only giv
     print('clasified as----->',classification)
     return classification.strip()
 
-def sql_query_generator(Input, schema_name=schema_name):
+def sql_query_generator(Input, selected_database):
+    meta_data_content, schema_name = meta_data(selected_database)
+    print('From sql query generator, schema name:', schema_name)
+    print('From sql query generator, meta_data_content name:', meta_data_content)
+
+
     prompt_sql_data = f"""
     You are a SQL expert.
     You are tasked to generate only SQL statement from the instruction provided. Never give out any additional sentences other than the SQL query requested of you.
 
     **instructions**
     Understanding the input question and referencing the database schema which has column names and its data types and sample rows of each tables,
-    generate a SQL statement that represents the qustion irrespective of whether the question is related to table format/visulization output just concentrate on giving out SQL query related to that question.
-
+    generate a SQL statement that represents the question irrespective of whether the question is related to table format/visualization output just concentrate on giving out SQL query related to that question.
 
     *Write the SQL query between <SQL></SQL>.
 
@@ -176,7 +178,7 @@ def sql_query_generator(Input, schema_name=schema_name):
     *For this problem you can use the following table schema:
 
     **table_schema**
-    {table_info_health}
+    {meta_data_content}
 
     *Please provide the SQL Query for this question:
 
@@ -190,11 +192,10 @@ def sql_query_generator(Input, schema_name=schema_name):
     *If the question is unrelated to the database or you cannot generate a relevant SQL statement, respond with "sorry, I am unable to help."
     *Do not create fabricated answers.
     *Respond with only the SQL query.
-
     """
-    
+
     generated_sql = call_openai_gpt(prompt_sql_data)
-    
+
     cleaned_sql = generated_sql.replace("<SQL>", "").replace("</SQL>", "")
 
     if f"{schema_name}." not in cleaned_sql:
@@ -204,18 +205,13 @@ def sql_query_generator(Input, schema_name=schema_name):
     query = f"{cleaned_sql}".strip()
     print("query :", query)
 
-    f"<strong>SQL Query to run:</strong><br>{query}"
-
-    # cursor.execute(query)
-    results = connection_for_healthcare(query)
+    results = connection(query)
     print("result :", results)
-    f"<strong>Result of SQL Query:</strong><br>{results}"
     return query, results
 
-
-def final_result(classification, Input):
+def final_result(classification, Input,selected_database):
     if any(word.lower() in classification.lower() for word in ['visualization']):
-        sql_query, out = sql_query_generator(Input)
+        sql_query, out = sql_query_generator(Input,selected_database)
         result = pd.DataFrame(out)
 
         def generate_bar_chart(Input, result):
@@ -271,15 +267,15 @@ def final_result(classification, Input):
             "chart_filename": "/static/chart.png"
         }
 
-        return sql_query, None, response
+        return sql_query, None, response, selected_database
     
     elif any(word in classification.lower() for word in ['table']):
-        sql_query, out = sql_query_generator(Input)
+        sql_query, out = sql_query_generator(Input,selected_database)
         d_f = pd.DataFrame(out)
-        return sql_query, d_f, None
+        return sql_query, d_f, None, selected_database
     
     else:
-        sql_query, out = sql_query_generator(Input)
+        sql_query, out = sql_query_generator(Input,selected_database)
 
         prompt_1 = f"""
 
@@ -324,4 +320,44 @@ You should only give the {'Your Response'} part. Don't give any other comments i
 """
         nl_response = call_openai_gpt(prompt_1)
 
-        return sql_query, nl_response, None
+        return sql_query, nl_response, None, selected_database
+
+
+## handle empty value for bar chart 
+
+# import matplotlib.pyplot as plt
+# import numpy as np
+
+# def generate_pie_chart(Input, result):
+#     cols = result.columns.tolist()
+#     result = result.dropna(subset=cols)
+
+#     if result.empty:
+#         # Create a bar chart with "No values" message
+#         fig, ax = plt.subplots(figsize=(16, 8))
+#         ax.barh(['No values'], [1], color='gray')
+#         ax.set_yticks([])
+#         ax.set_xlim(0, 1)
+#         ax.text(0.5, 0, 'No values', ha='center', va='center', fontsize=15, color='red')
+#         plt.title(f"Pie Chart: {Input}", fontweight='bold')
+#         plt.savefig('static/chart.png')
+#         plt.close()
+#     else:
+#         plt.figure(figsize=(16, 8))
+#         wedges, labels, _ = plt.pie(result[cols[1]], autopct='%1.1f%%', pctdistance=0.85)
+
+#         num_labels = len(labels)
+#         cmap = plt.get_cmap('tab20')
+#         colors = cmap(np.linspace(0, 1, num_labels))
+#         legend_labels = result[cols[0]]
+#         legend_handles = []
+#         for i, label in enumerate(legend_labels):
+#             legend_handles.append(plt.Rectangle((0, 0), 0.5, 0.5, color=colors[i], label=label))
+#         plt.legend(handles=legend_handles, loc='right', bbox_to_anchor=(1.5, 0.5), title=cols[0])
+
+#         for i, wedge in enumerate(wedges):
+#             wedge.set_facecolor(colors[i])
+
+#         plt.title(f"Pie Chart: {Input}", fontweight='bold')
+#         plt.savefig('static/chart.png')
+#         plt.close()

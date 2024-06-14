@@ -8,14 +8,11 @@ import copy
 import os
 
 
-# username = os.getenv('username')
-# password = os.getenv('password')
-# schema_name = os.getenv('schema_name')
-# database_name = os.getenv('database_name')
 app = Flask(__name__)
+app.secret_key = 'fipsar'
 
+selected_database = ''
 chat_history = []
-
 
 def combine_question_for_followup(chat_history):
     print('This is the chat history questions from the combine ques follow up functn:-->', chat_history)
@@ -47,10 +44,10 @@ Chat History: {chat_history}
     question_response = call_openai_gpt(prompt_for_followup)
     return question_response.strip()
 
-def handle_follow_up_question(chat_history):
+def handle_follow_up_question(chat_history,selected_database):
     classification_for_follow_up = question_classification(chat_history)
     print('This is classification of Rephrased Question--->', classification_for_follow_up)
-    sql_query, output, visualization_data = final_result(classification_for_follow_up, chat_history)
+    sql_query, output, visualization_data,database = final_result(classification_for_follow_up, chat_history,selected_database)
 
     if isinstance(output, pd.DataFrame):
         output = output.to_html(index=False, header=False)
@@ -70,11 +67,11 @@ def handle_follow_up_question(chat_history):
             response['sql_query'] = response['sql_query'].replace('\n','<br>')
     return response
 
-def handle_new_question(chat_history):
+def handle_new_question(chat_history,selected_database):
     print('This is the chat history from handle new ques funct:--->',chat_history[0])
     classification = question_classification(chat_history[0])
     print('This is the classification variable history:--->',classification)
-    sql_query, output, visualization_data = final_result(classification, chat_history[0])
+    sql_query, output, visualization_data,database = final_result(classification, chat_history[0],selected_database)
 
     if isinstance(output, pd.DataFrame):
         output = output.to_html(index=False, header=False)
@@ -90,62 +87,67 @@ def handle_new_question(chat_history):
         print(output)
         response = {'input':chat_history[0], "sql_query":sql_query,"output":output}
         if response['sql_query']:
-            response['sql_query'] =response['sql_query'].replace('\n','<br>')
+            response['sql_query'] = response['sql_query'].replace('\n','<br>')
     return response
 
 @app.route('/')
 def index():
     chat_type = 'new'
-    return render_template('index.html', chat_type=chat_type)
+    if 'selected_database' not in session:
+        session['selected_database'] = 'healthcare'
+   
+    return render_template('index.html', chat_type=chat_type, selected_database=session['selected_database'])
 
 @app.route('/chat', methods=['POST'])
 def chat():
-    global chat_history
-    if request.method =='POST':
-        Input= request.form['chatInput']
+    global chat_history, selected_database
+    if request.method == 'POST':
+        Input = request.form['chatInput']
         chat_type = request.form['chat_type']
-        print('chat type for initalization',chat_type)
-        selected_database = request.form['databaseSelect']
-        print('selected_database for initalization',selected_database)
+        print('chat type for initialization', chat_type)
+        selected_database = request.form.get('databaseSelect')
+        print('selected_database for initialization', selected_database)
+
+        session['selected_database'] = selected_database if selected_database else 'healthcare'
         
-        def process_chat(chat_type,Input):
+        def process_chat(chat_type, Input):
             global chat_history
-
+                        
+            original_chat_history = copy.deepcopy(chat_history)
             try:
-                original_chat_history = copy.deepcopy(chat_history)
 
-                if chat_type =='new':
+                if chat_type == 'new':
                     chat_history = [Input]
-                    response = handle_new_question(chat_history)
+                    response = handle_new_question(chat_history,selected_database)
                 else:
                     chat_history.append(Input)
                     combined_question = combine_question_for_followup(chat_history)
-                    print('This is the combined [Rephrased] ques from follow up:--->',combined_question)
+                    print('This is the combined [Rephrased] ques from follow up:--->', combined_question)
                     chat_history = [combined_question]
-                    print('This is the chat history of combined ques:--->',chat_history)
-                    response = handle_follow_up_question(chat_history[0])
+                    print('This is the chat history of combined ques:--->', chat_history)
+                    response = handle_follow_up_question(chat_history[0],selected_database)
                 return response
             except Exception as e:
-                print("error happended--->" , e)
+                print("error happened--->", e)
                 chat_history = original_chat_history
                 raise
 
         try:
             print('This is 1st try---->')
             response = process_chat(chat_type, Input)
-            print('This is 1st try input---->',Input)
+            print('This is 1st try input---->', Input)
         except Exception as e:
             try:
                 print('This is 2nd try----->')
                 response = process_chat(chat_type, Input)
-                print('This is 2nd try Input----->',Input)
+                print('This is 2nd try Input----->', Input)
             except Exception as e:
                 error_message = " Sorry, I don't understand your question. Please rephrase and try again."
                 response = {
-                    'error_message' : error_message
+                    'error_message': error_message
                 }
 
-        return render_template('index.html', response= response, chat_type=chat_type,selected_database=selected_database)
+        return render_template('index.html', response=response, chat_type=chat_type, selected_database=session['selected_database'])
     
 @app.route('/record_feedback', methods = ['POST'])
 def record_feedback():

@@ -38,31 +38,22 @@
         <div class="chat-container">
             <div class="whole-css">
                 <div class="forms mt-3">
-                    <form id="chat" action="/chat" , method="post" enctype="multipart/form-data" autocomplete="on">
+                    <form id="chat" action="/chat" method="post" enctype="multipart/form-data" autocomplete="on">
                         <div class="mb-3">
                             <label class="form-label">Select Your Database</label>
-                            <select class="form-select" id="databaseSelect" name="databaseSelect"
-                                aria-label="Default Select example">
-                                <option value="" disabled {% if selected_database=='' %}selected{% endif %}>Select a
-                                    database</option>
-                                <option value="Healthcare Database" {% if selected_database=='Healthcare Database'
-                                    %}selected{% endif %}>Healthcare Database</option>
-                                <option value="Pharma Database" {% if selected_database=='Pharma Database' %}selected{%
-                                    endif %}>Pharma Database</option>
+                            <select class="form-select" id="databaseSelect" name="databaseSelect" aria-label="Default Select example">
+                                <option value="healthcare" {% if selected_database == 'healthcare' %}selected{% endif %}>Healthcare Database</option>
+                                <option value="pharma" {% if selected_database == 'pharma' %}selected{% endif %}>Pharma Database</option>
                             </select>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Enter Your Question</label>
                             <div class="search-all-ic">
                                 <div class="input-group">
-                                    <input type="text" id="chatInput" name="chatInput" class="form-control input-con"
-                                        placeholder="Type here..." autocomplete="on">
-                                    <button type="button" class="input-group-text span-s"
-                                        onclick="toggleSpeechRecognition()">
-
+                                    <input type="text" id="chatInput" name="chatInput" class="form-control input-con" placeholder="Type here..." autocomplete="on">
+                                    <button type="button" class="input-group-text span-s" onclick="toggleSpeechRecognition()">
                                         <i id="mic_icon" class="fa fa-microphone" style="font-size: 20px;"></i>
-                                        <i id="soundwave_icon" class="bi bi-soundwave"
-                                            style="display: none; font-size: 20px;"></i>
+                                        <i id="soundwave_icon" class="bi bi-soundwave" style="display: none; font-size: 20px;"></i>
                                     </button>
                                     &nbsp;
                                     <span id="actions"></span>
@@ -76,9 +67,8 @@
                         </div>
                         <div class="ask-new-qun-rel">
                             <div class="ask-new-qun-ab">
-                                <input type="hidden" id="chatType" name="chat_type" value="{{chat_type}}">
-                                <button class="btn btn-sub-ask" type="button" id="toggleButton">{{"New Question" if
-                                    chat_type == "follow_up" else ("Ask Follow up" if chat_type == "new") }}</button>
+                                <input type="hidden" id="chatType" name="chat_type" value="{{ chat_type }}">
+                                <button class="btn btn-sub-ask" type="button" id="toggleButton">{{ "New Question" if chat_type == "follow_up" else ("Ask Follow up" if chat_type == "new") }}</button>
                             </div>
                         </div>
                     </form>

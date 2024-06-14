@@ -1,16 +1,16 @@
-Schema_name,Table_name,Flag
-public,bill,1
-public,doctor,1
-public,employee,1
-public,manf_supp_contract,1
-public,manufacturer,1
-public,medicine,1
-public,patient,1
-public,tests,1
-public,pharmacy,1
-public,pharmacy_medicines,1
-public,prescribed_medicines,1
-public,prescription,1
-public,supplier,1
+Database_name,Schema_name,Table_name,Flag
+pharma,pharma,bill,1
+pharma,pharma,doctor,1
+pharma,pharma,employee,1
+pharma,pharma,manf_supp_contract,1
+pharma,pharma,manufacturer,1
+pharma,pharma,medicine,1
+pharma,pharma,patient,1
+pharma,pharma,tests,1
+pharma,pharma,pharmacy,1
+pharma,pharma,pharmacy_medicines,1
+pharma,pharma,prescribed_medicines,1
+pharma,pharma,prescription,1
+pharma,pharma,supplier,1
 
 

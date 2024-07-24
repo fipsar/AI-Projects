@@ -79,6 +79,30 @@ function copycontentss() {
   window.getSelection().removeAllRanges();
 }
 
+
+function copyContents_ques() {
+  var copyText = document.querySelector(".copy-content_ques");
+  var range = document.createRange();
+  range.selectNode(copyText);
+  window.getSelection().addRange(range);
+  try {
+    var successful = document.execCommand("copy");
+    if (successful) {
+      document.getElementById("clipboard_icon_ques").style.display = "none";
+      document.getElementById("tick_icon_ques").style.display = "inline";
+      setTimeout(function () {
+        document.getElementById("tick_icon_ques").style.display = "none";
+        document.getElementById("clipboard_icon_ques").style.display = "inline";
+      }, 1500);
+    }
+    // var msg = successful? 'Copied!': 'Unable to copy.';
+    console.log(msg);
+  } catch (err) {
+    console.log("Unable to copy.");
+  }
+  window.getSelection().removeAllRanges();
+}
+
 function openVisualization(chartFile) {
     window.open(chartFile, "_blank");
 }

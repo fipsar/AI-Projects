@@ -1,0 +1,76 @@
+
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Interactive Bar Chart</title>
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                </head>
+                <body>
+                    <div style="width: 75%; margin: auto;">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                    <script>
+                        const uniqueColors = ["rgba(153, 30, 30, 0.8)", "rgba(153, 67, 30, 0.8)", "rgba(153, 104, 30, 0.8)", "rgba(153, 140, 30, 0.8)", "rgba(128, 153, 30, 0.8)", "rgba(91, 153, 30, 0.8)", "rgba(55, 153, 30, 0.8)", "rgba(30, 153, 42, 0.8)", "rgba(30, 153, 79, 0.8)", "rgba(30, 153, 116, 0.8)", "rgba(30, 153, 153, 0.8)", "rgba(30, 116, 153, 0.8)", "rgba(30, 79, 153, 0.8)", "rgba(30, 42, 153, 0.8)", "rgba(55, 30, 153, 0.8)", "rgba(91, 30, 153, 0.8)", "rgba(128, 30, 153, 0.8)", "rgba(153, 30, 140, 0.8)", "rgba(153, 30, 104, 0.8)", "rgba(153, 30, 67, 0.8)"];
+                        const labels = ["Cardiology", "Pediatrics", "Orthopedics", "Dermatology", "Neurology", "Oncology", "Psychiatry", "Gynecology", "Urology", "Rheumatology", "Endocrinology", "Allergy", "Gastroenterology", "Hematology", "Nephrology", "Pulmonology", "Radiology", "Ophthalmology", "Pathology", "Anesthesiology"];
+                        const data = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1];
+
+                        const config = {
+                            type: 'bar',
+                            data: {
+                                labels: labels,
+                                datasets: [{
+                                    label: 'Count',
+                                    data: data,
+                                    backgroundColor: uniqueColors,
+                                    borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                    borderWidth: 1,
+                                }]
+                            },
+                            options: {
+                                responsive: true,
+                                maintainAspectRatio : true,
+                                animation: false,
+                                plugins: {
+                                    title: {
+                                        display: true,
+                                        text: 'Generate a bar chart for the count of specialization ',
+                                        font: { size: 18 }
+                                    },
+                                    tooltip: {
+                                        mode: 'index',
+                                        intersect: false,
+                                    },
+                                    legend: { display: false }
+                                },
+                                scales: {
+                                    y: {
+                                        beginAtZero: true,
+                                        title: {
+                                            display: true,
+                                            text: 'Count',
+                                            font: { size: 14 }
+                                        }
+                                    },
+                                    x: {
+                                        title: {
+                                            display: true,
+                                            text: 'Specialty',
+                                            font: { size: 14 }
+                                        },
+                                        ticks: {
+                                    maxRotation: 90,
+                                    minRotation: 90
+                                }
+                                    }
+                                }
+                            }
+                        };
+
+                        const ctx = document.getElementById('myChart').getContext('2d');
+                        new Chart(ctx, config);
+                    </script>
+                </body>
+                </html>
+                

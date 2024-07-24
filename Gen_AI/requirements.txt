@@ -16,4 +16,5 @@ Flask-session
 openai==0.28
 python-dotenv
 flask_mysqldb
-
+plotly
+psycopg2

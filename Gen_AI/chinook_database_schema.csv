@@ -1,0 +1,15 @@
+Schema_name,Table_name,Flag
+chinook,album,1
+chinook,artist,1
+chinook,customer,1
+chinook,employee,1
+chinook,genre,1
+chinook,invoice,1
+chinook,invoiceline,1
+chinook,mediatype,1
+chinook,playlist,1
+chinook,playlisttrack,1
+chinook,track,1
+
+
+

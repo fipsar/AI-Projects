@@ -14,22 +14,27 @@ import openai
 import os
 from dotenv import load_dotenv
 from flask import session
+import psycopg2
+import re
+import plotly.graph_objs as go
+import plotly.io as pio
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import colorsys
 
 
 load_dotenv()
 
-def connection(query):
+def mysql_connection(query):
     try:
         conn = mysql.connector.connect(
             user='root',
             password='1234',
             host='localhost',
             port='3306',
-            database=session.get('selected_database', 'healthcare')
+            database=session.get('selected_database', '')
         )
-        
-        print('Connected to database:', conn.database)
-        
         cursor = conn.cursor()
         cursor.execute(query)
         
@@ -45,13 +50,44 @@ def connection(query):
         return result
     
     except mysql.connector.Error as error:
-        print(f"Error occurred: {error}")
         return f"Error: {error}"
 
+def postgresql_connection(query):
+    try:
+        conn = psycopg2.connect(
+            user='postgres',
+            password='4563',
+            host='localhost',
+            port='5432',
+            database=session.get('selected_database', '')
+        )
+        cursor = conn.cursor()
+        cursor.execute(query)
+        
+        if query.strip().lower().startswith(('update', 'delete', 'insert')):
+            conn.commit()
+            result = f"Query executed successfully: {cursor.rowcount} rows affected."
+        else:
+            result = cursor.fetchall()
+        
+        cursor.close()
+        conn.close()
+        
+        return result
+    
+    except psycopg2.Error as error:
+        return f"Error: {error}"
+def connection(query, selected_datasource):
+    if selected_datasource == 'mysql':
+        return mysql_connection(query)
+    elif selected_datasource == 'postgresql':
+        return postgresql_connection(query)
+    else:
+        raise ValueError(f"Unsupported data source selected: {selected_datasource}")
 
 
-def get_specific_tables_metadata(connection, selected_database, schema_name, tables_df, num_samples=2):
-    print('get_specific_tables_metadata database name', selected_database)
+
+def get_specific_tables_metadata(connection,selected_datasource, selected_database, schema_name, tables_df, num_samples=2):
     metadata = ""
     working_tables = tables_df[tables_df['Flag'] == 1]
     
@@ -60,22 +96,23 @@ def get_specific_tables_metadata(connection, selected_database, schema_name, tab
         metadata += f"\nMetadata for table {selected_database}.{schema_name}.{table_name}:\n"
         sql = f"SHOW COLUMNS FROM {schema_name}.{table_name}"
         
-        result = connection(sql)
+        result = connection(sql,selected_datasource)
         create_table_statement = f"CREATE TABLE {schema_name}.{table_name} ("
         for row in result:
-            if selected_database == 'healthcare':
-                column_name = row[0]
-                data_type = row[1]
-                create_table_statement += f"\n {column_name} {data_type},"
-            if selected_database == 'pharma':
-                column_name = row[0]
-                data_type = row[0]
-                create_table_statement += f"\n {column_name} {data_type},"
+            if selected_datasource == 'mysql':
+                if selected_database == 'healthcare':
+                    column_name = row[0]
+                    data_type = row[1]
+                    create_table_statement += f"\n {column_name} {data_type},"
+                if selected_database == 'pharma':
+                    column_name = row[0]
+                    data_type = row[0]
+                    create_table_statement += f"\n {column_name} {data_type},"
         create_table_statement = create_table_statement.rstrip(',') + "\n);"
         metadata += create_table_statement + "\n"
 
         sample_sql = f"SELECT * FROM {schema_name}.{table_name} LIMIT {num_samples};"
-        sample_rows = connection(sample_sql)
+        sample_rows = connection(sample_sql,selected_datasource)
 
         metadata += f"\nSample rows from {table_name} table:\n"
         for row in sample_rows:
@@ -84,28 +121,42 @@ def get_specific_tables_metadata(connection, selected_database, schema_name, tab
     return metadata
 
 
-def meta_data(selected_database):
-    healthcare_schema_df = pd.read_csv('health_data_schema.csv')
-    pharma_schema_df = pd.read_csv('pharma_database_schema.csv')
-
-    if selected_database == 'healthcare':
-        schema_name = 'healthcare'
-        df = healthcare_schema_df
-    elif selected_database == 'pharma':
-        schema_name = 'pharma'
-        df = pharma_schema_df
+def meta_data(selected_database, selected_datasource):
+    schema_files = {
+        'healthcare': 'health_data_schema.csv',
+        'pharma': 'pharma_database_schema.csv',
+        'chinook': 'chinook_database_schema.csv'
+    }
+    
+    schema_dataframes = {
+        key: pd.read_csv(file) for key, file in schema_files.items()
+    }
+    
+    if selected_datasource == 'mysql':
+        if selected_database in ['healthcare', 'pharma']:
+            schema_name = selected_database
+            df = schema_dataframes[selected_database]
+        else:
+            raise ValueError(f"Unknown database selected for mysql: {selected_database}")
+    elif selected_datasource == 'postgresql':
+        if selected_database == 'chinook':
+            schema_name = 'chinook'
+            df = schema_dataframes['chinook']
+        else:
+            raise ValueError(f"Unknown database selected for chinook: {selected_database}")
     else:
-        raise ValueError(f"Unknown database selected: {selected_database}")
-
-    table_info = get_specific_tables_metadata(connection, selected_database, schema_name, df)
+        raise ValueError(f"Unknown datasource selected: {selected_datasource}")
+    
+    table_info = get_specific_tables_metadata(connection, selected_datasource, selected_database, schema_name, df)
     return table_info, schema_name
+
 
 # Initialize OpenAI API key
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 def call_openai_gpt(prompt):
     response = openai.ChatCompletion.create(
-        model="gpt-4-turbo",  # Specify the model
+        model="gpt-3.5-turbo",  # Specify the model
         messages=[
             {"role": "user", "content": prompt}
         ],
@@ -120,7 +171,6 @@ def call_openai_gpt(prompt):
 
 
 def question_classification(Input):
-    print('From que_class------>',Input)
     prompt_for_classify_input = f"""Given a INPUT you should classify it under one of the following question type: {Input}.
 
 Below are the examples of the Input and its question type.
@@ -154,15 +204,133 @@ Do not strictly write the Input question and Instruction in the output. only giv
 """
 
     classification = call_openai_gpt(prompt_for_classify_input)
-    print('clasified as----->',classification)
     return classification.strip()
 
-def sql_query_generator(Input, selected_database):
-    meta_data_content, schema_name = meta_data(selected_database)
-    print('From sql query generator, schema name:', schema_name)
-    print('From sql query generator, meta_data_content name:', meta_data_content)
+# def sql_query_generator(Input, selected_database,selected_datasource,mode):
+#     if mode == 'user_mode':
+#         meta_data_content, schema_name = meta_data(selected_database,selected_datasource)
+
+#         prompt_sql_data = f"""
+#         You are a SQL expert.
+#         You are tasked to generate only SQL statement from the instruction provided. Never give out any additional sentences other than the SQL query requested of you.
+
+#         **instructions**
+#         Understanding the input question and referencing the database schema which has column names and its data types and sample rows of each tables,
+#         generate a SQL statement that represents the question irrespective of whether the question is related to table format/visualization output just concentrate on giving out SQL query related to that question.
+
+#         *Write the SQL query between <SQL></SQL>.
+
+#         *Only provide SQL Query. Do not give any explanations for the generated SQL Query
+
+#         *For this problem you can use the following table schema:
+
+#         **table_schema**
+#         {meta_data_content}
+
+#         *Please provide the SQL Query for this question:
+
+#         **question**
+#         {Input}
+
+#         **Additional Hints:**
+
+#         *Provide only the SQL query, with no additional comments.
+#         *The SQL query must follow the provided table schema.
+#         *If the question is unrelated to the database or you cannot generate a relevant SQL statement, respond with "sorry, I am unable to help."
+#         *Do not create fabricated answers.
+#         *Respond with only the SQL query.
+#         """
+
+#         generated_sql = call_openai_gpt(prompt_sql_data)
+
+#         cleaned_sql = generated_sql.replace("<SQL>", "").replace("</SQL>", "")
+
+#         if f"{schema_name}." not in cleaned_sql:
+#             cleaned_sql = cleaned_sql.replace('FROM', f'FROM {schema_name}.')
+#             cleaned_sql = cleaned_sql.replace('JOIN', f'JOIN {schema_name}.')
+
+#         query = f"{cleaned_sql}".strip()
+#         col_name = []
+#         select_part = re.search(r'SELECT\s+(.*?)\s+FROM', query, re.IGNORECASE)
+#         if select_part:
+#             column_string = select_part.group(1)
+#             for col in column_string.split(','):
+#                 # Extract alias if it exists, otherwise use the column name
+#                 match = re.search(r'\s+AS\s+(\w+)', col, re.IGNORECASE)
+#                 if match:
+#                     col_name.append(match.group(1).strip())
+#                 else:
+#                     col_name.append(col.strip())
+#         else:
+#             print("Warning: Unable to extract column names from the SQL query.")
+
+#         results = connection(query,selected_datasource)
+#         return query, results, col_name, mode
+    
+#     elif mode == 'developer_mode':
+#         meta_data_content, schema_name = meta_data(selected_database,selected_datasource)
+#         prompt_sql_data = f"""
+#         You are a SQL expert.
+#         You are tasked to generate only SQL statement from the instruction provided. Never give out any additional sentences other than the SQL query requested of you.
+
+#         **instructions**
+#         Understanding the input question and referencing the database schema which has column names and its data types and sample rows of each tables,
+#         generate a SQL statement that represents the question irrespective of whether the question is related to table format/visualization output just concentrate on giving out SQL query related to that question.
+
+#         *Write the SQL query between <SQL></SQL>.
+
+#         *Only provide SQL Query. Do not give any explanations for the generated SQL Query
+
+#         *For this problem you can use the following table schema:
+
+#         **table_schema**
+#         {meta_data_content}
+
+#         *Please provide the SQL Query for this question:
+
+#         **question**
+#         {Input}
+
+#         **Additional Hints:**
+
+#         *Provide only the SQL query, with no additional comments.
+#         *The SQL query must follow the provided table schema.
+#         *If the question is unrelated to the database or you cannot generate a relevant SQL statement, respond with "sorry, I am unable to help."
+#         *Do not create fabricated answers.
+#         *Respond with only the SQL query.
+#         """
+
+#         generated_sql = call_openai_gpt(prompt_sql_data)
+
+#         cleaned_sql = generated_sql.replace("<SQL>", "").replace("</SQL>", "")
+
+#         if f"{schema_name}." not in cleaned_sql:
+#             cleaned_sql = cleaned_sql.replace('FROM', f'FROM {schema_name}.')
+#             cleaned_sql = cleaned_sql.replace('JOIN', f'JOIN {schema_name}.')
+
+#         query = f"{cleaned_sql}".strip()
+
+#         col_name = []
+#         select_part = re.search(r'SELECT\s+(.*?)\s+FROM', query, re.IGNORECASE)
+#         if select_part:
+#             column_string = select_part.group(1)
+#             for col in column_string.split(','):
+#                 # Extract alias if it exists, otherwise use the column name
+#                 match = re.search(r'\s+AS\s+(\w+)', col, re.IGNORECASE)
+#                 if match:
+#                     col_name.append(match.group(1).strip())
+#                 else:
+#                     col_name.append(col.strip())
+#         else:
+#             print("Warning: Unable to extract column names from the SQL query.")
+
+#         return query
 
 
+def sql_query_generator(Input, selected_database, selected_datasource, mode):
+    print('Entering_sql_query_generator_function')
+    meta_data_content, schema_name = meta_data(selected_database, selected_datasource)
+    
     prompt_sql_data = f"""
     You are a SQL expert.
     You are tasked to generate only SQL statement from the instruction provided. Never give out any additional sentences other than the SQL query requested of you.
@@ -193,171 +361,1948 @@ def sql_query_generator(Input, selected_database):
     *Do not create fabricated answers.
     *Respond with only the SQL query.
     """
-
+    
     generated_sql = call_openai_gpt(prompt_sql_data)
-
-    cleaned_sql = generated_sql.replace("<SQL>", "").replace("</SQL>", "")
+    cleaned_sql = generated_sql.replace("<SQL>", "").replace("</SQL>", "").strip()
 
     if f"{schema_name}." not in cleaned_sql:
         cleaned_sql = cleaned_sql.replace('FROM', f'FROM {schema_name}.')
         cleaned_sql = cleaned_sql.replace('JOIN', f'JOIN {schema_name}.')
-
-    query = f"{cleaned_sql}".strip()
-    print("query :", query)
-
-    results = connection(query)
-    print("result :", results)
-    return query, results
-
-def final_result(classification, Input,selected_database):
-    if any(word.lower() in classification.lower() for word in ['visualization']):
-        sql_query, out = sql_query_generator(Input,selected_database)
-        result = pd.DataFrame(out)
-
-        def generate_bar_chart(Input, result):
-            cols = result.columns.tolist()
-            result = result.dropna(subset=cols)
-            plt.figure(figsize=(16,8))
-
-            x_ticks = np.arange(len(result[cols[0]]))
-            plt.bar(x_ticks, result[cols[1]])
-            plt.xticks(x_ticks, result[cols[0]], rotation='vertical')
-            plt.xlabel(cols[0])
-            plt.ylabel(cols[1])
-            plt.title(f"Bar Chart: {Input}", fontweight='bold')
-            plt.tight_layout()
-            plt.savefig('static/chart.png')
-            plt.close()
-
-        def generate_pie_chart(Input, result):
-            cols = result.columns.tolist()
-            result = result.dropna(subset=cols)
-            plt.figure(figsize=(16,8))
-
-            wedges, labels, _ = plt.pie(result[cols[1]], autopct='%1.1f%%', pctdistance=0.85)
-
-            num_labels = len(labels)
-            cmap = plt.get_cmap('tab20')
-            colors = cmap(np.linspace(0,1, num_labels))
-            legend_labels = result[cols[0]]
-            legend_handles = []
-            for i, label in enumerate(legend_labels):
-                legend_handles.append(plt.Rectangle((0,0),0.5,0.5, color = colors[i], label=label))
-            plt.legend(handles = legend_handles, loc ='right', bbox_to_anchor = (1.5,0.5),title= cols[0])
-
-            for i, wedge in enumerate(wedges):
-                wedge.set_facecolor(colors[i])
-
-            plt.title(f"Pie Chart: {Input}", fontweight='bold')
-            plt.savefig('static/chart.png')
-            plt.close()
-
-        if "bar chart" in Input.lower():
-            generate_bar_chart(Input, result)
-        elif 'pie chart' in Input.lower():
-            generate_pie_chart(Input, result)
-        else:
-            print('No specific chart mentioned')
-           
-
-        response = {
-            "input": Input,
-            "sql_query": sql_query,
-            "output": "Visualization Generated",
-            "chart_filename": "/static/chart.png"
-        }
-
-        return sql_query, None, response, selected_database
     
+    query = cleaned_sql
+    col_name = extract_column_names(query)
+
+    if mode == 'user_mode':
+        print('Sql_query_generator_for_user_mode')
+        results = connection(query, selected_datasource)
+        if len(col_name) != len(results[0]):
+            col_name = [f'column_{i+1}' for i in range(len(results[0]))]
+        return query, results, col_name, mode
+    elif mode == 'developer_mode':
+        print('Sql_query_generator_for_dev_mode')
+        return query
+
+def extract_column_names(query):
+    col_name = []
+    select_part = re.search(r'SELECT\s+(.*?)\s+FROM', query, re.IGNORECASE)
+    if select_part:
+        column_string = select_part.group(1)
+        for col in column_string.split(','):
+            match = re.search(r'\s+AS\s+(\w+)', col, re.IGNORECASE)
+            if match:
+                col_name.append(match.group(1).strip())
+            else:
+                col_name.append(col.strip())
+    else:
+        print("Warning: Unable to extract column names from the SQL query.")
+    return col_name
+
+
+
+def final_result(classification, Input,selected_database,selected_datasource,mode):
+    print('Entering_final_resut')
+    if any(word.lower() in classification.lower() for word in ['visualization']):
+        if mode == 'user_mode':
+            print('Final_resut_user_mode_for_visual')
+            sql_query, out, col_name, mode_type = sql_query_generator(Input,selected_database,selected_datasource,mode)
+            result = pd.DataFrame(out, columns=col_name)
+
+            # def generate_unique_colors(n):
+            #     HSV_tuples = [(x * 1.0 / n, 0.5, 0.8) for x in range(n)]
+            #     RGB_tuples = [colorsys.hsv_to_rgb(*x) for x in HSV_tuples]
+            #     return [f'rgba({int(r * 255)}, {int(g * 255)}, {int(b * 255)}, 0.8)' for r, g, b in RGB_tuples]
+            def generate_unique_colors(n):
+                HSV_tuples = [(x * 1.0 / n, 0.8, 0.6) for x in range(n)]  # Increase saturation and reduce value for darker colors
+                RGB_tuples = [colorsys.hsv_to_rgb(*x) for x in HSV_tuples]
+                return [f'rgba({int(r * 255)}, {int(g * 255)}, {int(b * 255)}, 0.8)' for r, g, b in RGB_tuples]
+            
+            def generate_bar_chart(Input, result):
+                if isinstance(result, list):
+                    if len(result) > 1:
+                        result = pd.DataFrame(result[1:], columns=result[0])
+                    else:
+                        result = pd.DataFrame()
+
+                if not isinstance(result, pd.DataFrame):
+                    raise ValueError("result should be a pandas DataFrame or convertible to one.")
+
+                cols = result.columns.tolist()
+                
+                if len(cols) < 2:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Bar Chart</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%;  margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['Not enough data'];
+                            const data = [1];
+                            const uniqueColors = ['rgba(128, 128, 128, 0.8)'];
+
+                            const config = {{
+                                type: 'bar',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'Not enough data',
+                                        data: data,
+                                        backgroundColor: uniqueColors,
+                                        borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                        borderWidth: 1,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    maintainAspectRatio : true,
+                                    animation: false,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: false }}
+                                    }},
+                                    scales: {{
+                                        y: {{
+                                            beginAtZero: true,
+                                            title: {{
+                                                display: true,
+                                                text: 'Value',
+                                                font: {{ size: 14 }}
+                                            }}
+                                        }},
+                                        x: {{
+                                            title: {{
+                                                display: true,
+                                                text: 'Category',
+                                                font: {{ size: 14 }}
+                                            }},
+                                            ticks: {{
+                                                maxRotation: 90,
+                                                minRotation: 90
+                                }}
+                                            
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                result = result.dropna(subset=cols)
+
+                labels = result[cols[0]].tolist()
+                data = result[cols[1]].tolist()
+                
+                unique_colors = generate_unique_colors(len(labels))
+
+                if result.empty:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Bar Chart</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['No values'];
+                            const data = [1];
+                            const uniqueColors = ['rgba(128, 128, 128, 0.8)'];
+
+                            const config = {{
+                                type: 'bar',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'No values',
+                                        data: data,
+                                        backgroundColor: uniqueColors,
+                                        borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                        borderWidth: 1,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    maintainAspectRatio : true,
+                                    animation: false,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: false }}
+                                    }},
+                                    scales: {{
+                                        y: {{
+                                            beginAtZero: true,
+                                            title: {{
+                                                display: true,
+                                                text: 'Value',
+                                                font: {{ size: 14 }}
+                                            }}
+                                        }},
+                                        x: {{
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[0]}',
+                                                font: {{ size: 14 }}
+                                            }},
+                                            ticks: {{
+                                    maxRotation: 90,
+                                    minRotation: 90
+                                }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Interactive Bar Chart</title>
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                </head>
+                <body>
+                    <div style="width: 75%; margin: auto;">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                    <script>
+                        const uniqueColors = {json.dumps(unique_colors)};
+                        const labels = {json.dumps(labels)};
+                        const data = {json.dumps(data)};
+
+                        const config = {{
+                            type: 'bar',
+                            data: {{
+                                labels: labels,
+                                datasets: [{{
+                                    label: '{cols[1]}',
+                                    data: data,
+                                    backgroundColor: uniqueColors,
+                                    borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                    borderWidth: 1,
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio : true,
+                                animation: false,
+                                plugins: {{
+                                    title: {{
+                                        display: true,
+                                        text: '{Input}',
+                                        font: {{ size: 18 }}
+                                    }},
+                                    tooltip: {{
+                                        mode: 'index',
+                                        intersect: false,
+                                    }},
+                                    legend: {{ display: false }}
+                                }},
+                                scales: {{
+                                    y: {{
+                                        beginAtZero: true,
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[1]}',
+                                            font: {{ size: 14 }}
+                                        }}
+                                    }},
+                                    x: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[0]}',
+                                            font: {{ size: 14 }}
+                                        }},
+                                        ticks: {{
+                                    maxRotation: 90,
+                                    minRotation: 90
+                                }}
+                                    }}
+                                }}
+                            }}
+                        }};
+
+                        const ctx = document.getElementById('myChart').getContext('2d');
+                        new Chart(ctx, config);
+                    </script>
+                </body>
+                </html>
+                """
+
+                with open('static/chart.html', 'w') as f:
+                    f.write(html_content)
+            
+            def generate_pie_chart(Input, result):
+                if isinstance(result, list):
+                    if len(result) > 1:
+                        result = pd.DataFrame(result[1:], columns=result[0])
+                    else:
+                        result = pd.DataFrame()
+
+                if not isinstance(result, pd.DataFrame):
+                    raise ValueError("result should be a pandas DataFrame or convertible to one.")
+
+                cols = result.columns.tolist()
+                
+                if len(cols) < 2:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Pie Chart</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 45%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['Not enough data'];
+                            const data = [1];
+                            const uniqueColors = ['rgba(128, 128, 128, 0.8)'];
+
+                            const config = {{
+                                type: 'pie',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'Not enough data',
+                                        data: data,
+                                        backgroundColor: uniqueColors,
+                                        borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                        borderWidth: 1,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    maintainAspectRatio: true,
+                                    animation: false,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: true, 
+                                        position: 'right',
+                                        labels: {{
+                                            title: 'Legend',
+                                            titleAlign: 'center',
+                                        }}, layout: {{
+                                            padding: {{
+                                                left: 50,
+                                                right: 50,
+                                                top: 0,
+                                                bottom: 0
+                                            }}
+                                        }} 
+                                    }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                result = result.dropna(subset=cols)
+
+                labels = result[cols[0]].tolist()
+                data = result[cols[1]].tolist()
+                
+                unique_colors = generate_unique_colors(len(labels))
+
+                if result.empty:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Pie Chart</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 45%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['No values'];
+                            const data = [1];
+                            const uniqueColors = ['rgba(128, 128, 128, 0.8)'];
+
+                            const config = {{
+                                type: 'pie',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'No values',
+                                        data: data,
+                                        backgroundColor: uniqueColors,
+                                        borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                        borderWidth: 1,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    maintainAspectRatio: true,
+                                    animation: false,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: true, position: 'right', 
+                                        labels: {{
+                                            title: 'Legend',
+                                            titleAlign: 'center',
+                                        }}, 
+                                        layout: {{
+                                            padding: {{
+                                                left: 50,
+                                                right: 50,
+                                                top: 0,
+                                                bottom: 0
+                                            }}
+                                         }} 
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Interactive Pie Chart</title>
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                </head>
+                <body>
+                    <div style="width: 45%; margin: auto;">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                    <script>
+                        const uniqueColors = {json.dumps(unique_colors)};
+                        const labels = {json.dumps(labels)};
+                        const data = {json.dumps(data)};
+
+                        const config = {{
+                            type: 'pie',
+                            data: {{
+                                labels: labels,
+                                datasets: [{{
+                                    label: '{cols[1]}',
+                                    data: data,
+                                    backgroundColor: uniqueColors,
+                                    borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                    borderWidth: 1,
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: true,
+                                animation: false,
+                                plugins: {{
+                                    title: {{
+                                        display: true,
+                                        text: '{Input}',
+                                        font: {{ size: 18 }}
+                                    }},
+                                    tooltip: {{
+                                        mode: 'index',
+                                        intersect: false,
+                                    }},
+                                    legend: {{ display: true, position: 'right',
+                                    labels: {{
+                                        title: 'Legend',
+                                        titleAlign: 'center',
+                                    }}, layout: {{
+                            padding: {{
+                                left: 50,
+                                right: 50,
+                                top: 0,
+                                bottom: 0
+                            }}
+                        }}
+                                }}
+                                }}
+                            }}
+                        }};
+
+                        const ctx = document.getElementById('myChart').getContext('2d');
+                        new Chart(ctx, config);
+                    </script>
+                </body>
+                </html>
+                """
+
+                with open('static/chart.html', 'w') as f:
+                    f.write(html_content)
+
+            
+            def generate_scatter_plot(Input, result):
+                if isinstance(result, list):
+                    if len(result) > 1:
+                        result = pd.DataFrame(result[1:], columns=result[0])
+                    else:
+                        result = pd.DataFrame()
+
+                if not isinstance(result, pd.DataFrame):
+                    raise ValueError("result should be a pandas DataFrame or convertible to one.")
+
+                cols = result.columns.tolist()
+                
+                if len(cols) < 2:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Scatter Plot</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; height: 500px; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['Not enough data'];
+                            const data = [{x: 0, y: 1}];
+                            const uniqueColors = ['rgba(128, 128, 128, 0.8)'];
+
+                            const config = {{
+                                type: 'scatter',
+                                data: {{
+                                    datasets: [{{
+                                        label: 'Not enough data',
+                                        data: data,
+                                        backgroundColor: uniqueColors,
+                                        borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                        borderWidth: 1,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    maintainAspectRatio: true,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{
+                                                size: 20,
+                                                weight: 'bold'
+                                            }},
+                                            padding: {{
+                                                top: 10,
+                                                bottom: 30
+                                            }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{
+                                            position: 'right',
+                                            align: 'center',
+                                            labels: {{
+                                                boxWidth: 15,
+                                                font: {{
+                                                    size: 12
+                                                }},
+                                                padding: 15
+                                            }}
+                                        }}
+                                    }},
+                                    layout: {{
+                                        padding: {{
+                                            left: 20,
+                                            right: 20,
+                                            top: 20,
+                                            bottom: 20
+                                        }}
+                                    }},
+                                    scales: {{
+                                        x: {{
+                                            title: {{
+                                                display: true,
+                                                text: 'X-axis',
+                                                font: {{ size: 14 }}
+                                            }}
+                                        }},
+                                        y: {{
+                                            beginAtZero: true,
+                                            title: {{
+                                                display: true,
+                                                text: 'Y-axis',
+                                                font: {{ size: 14 }}
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                result = result.dropna(subset=cols)
+
+                data = [{'x': x, 'y': y} for x, y in zip(result[cols[0]], result[cols[1]])]
+                unique_colors = generate_unique_colors(len(data))
+
+                if result.empty:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Scatter Plot</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; height: 500px; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['No values'];
+                            const data = [{x: 0, y: 1}];
+                            const uniqueColors = ['rgba(128, 128, 128, 0.8)'];
+
+                            const config = {{
+                                type: 'scatter',
+                                data: {{
+                                    datasets: [{{
+                                        label: 'No values',
+                                        data: data,
+                                        backgroundColor: uniqueColors,
+                                        borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                        borderWidth: 1,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    maintainAspectRatio: true,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{
+                                                size: 20,
+                                                weight: 'bold'
+                                            }},
+                                            padding: {{
+                                                top: 10,
+                                                bottom: 30
+                                            }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{
+                                            position: 'right',
+                                            align: 'center',
+                                            labels: {{
+                                                boxWidth: 15,
+                                                font: {{
+                                                    size: 12
+                                                }},
+                                                padding: 15
+                                            }}
+                                        }}
+                                    }},
+                                    layout: {{
+                                        padding: {{
+                                            left: 20,
+                                            right: 20,
+                                            top: 20,
+                                            bottom: 20
+                                        }}
+                                    }},
+                                    scales: {{
+                                        x: {{
+                                            title: {{
+                                                display: true,
+                                                text: 'X-axis',
+                                                font: {{ size: 14 }}
+                                            }}
+                                        }},
+                                        y: {{
+                                            beginAtZero: true,
+                                            title: {{
+                                                display: true,
+                                                text: 'Y-axis',
+                                                font: {{ size: 14 }}
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Interactive Scatter Plot</title>
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                </head>
+                <body>
+                    <div style="width: 75%; height: 500px; margin: auto;">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                    <script>
+                        const uniqueColors = {json.dumps(unique_colors)};
+                        const data = {json.dumps(data)};
+
+                        const config = {{
+                            type: 'scatter',
+                            data: {{
+                                datasets: [{{
+                                    label: '{cols[1]}',
+                                    data: data,
+                                    backgroundColor: uniqueColors,
+                                    borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                    borderWidth: 1,
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                maintainAspectRatio: true,
+                                plugins: {{
+                                    title: {{
+                                        display: true,
+                                        text: '{Input}',
+                                        font: {{
+                                            size: 20,
+                                            weight: 'bold'
+                                        }},
+                                        padding: {{
+                                            top: 10,
+                                            bottom: 30
+                                        }}
+                                    }},
+                                    tooltip: {{
+                                        mode: 'index',
+                                        intersect: false,
+                                    }},
+                                    legend: {{
+                                        position: 'right',
+                                        align: 'center',
+                                        labels: {{
+                                            boxWidth: 15,
+                                            font: {{
+                                                size: 12
+                                            }},
+                                            padding: 15
+                                        }}
+                                    }}
+                                }},
+                                layout: {{
+                                    padding: {{
+                                        left: 20,
+                                        right: 20,
+                                        top: 20,
+                                        bottom: 20
+                                    }}
+                                }},
+                                scales: {{
+                                    x: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[0]}',
+                                            font: {{ size: 14 }}
+                                        }}
+                                    }},
+                                    y: {{
+                                        beginAtZero: true,
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[1]}',
+                                            font: {{ size: 14 }}
+                                        }}
+                                    }}
+                                }}
+                            }}
+                        }};
+
+                        const ctx = document.getElementById('myChart').getContext('2d');
+                        new Chart(ctx, config);
+                    </script>
+                </body>
+                </html>
+                """
+
+                with open('static/chart.html', 'w') as f:
+                    f.write(html_content)
+
+            def generate_column_chart(Input, result):
+                # Check if result is a list or tuple and convert it to DataFrame
+                if isinstance(result, (list, tuple)):
+                    result = list(result)  # Convert tuple to list if necessary
+                    if len(result) > 1:
+                        # Assuming the first row is the header and the rest are data
+                        result = pd.DataFrame(result[1:], columns=result[0])
+                    else:
+                        # Handle the case where the result list is empty or has no data rows
+                        result = pd.DataFrame()
+
+                # Now result should be a DataFrame
+                if not isinstance(result, pd.DataFrame):
+                    raise ValueError("result should be a pandas DataFrame or convertible to one.")
+
+                cols = result.columns.tolist()
+                
+                if len(cols) < 2:
+                    # Handle the case where there are not enough columns
+                    print('Not enough columns to generate chart')
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Column Chart</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['Not enough data'];
+                            const data = [1];
+                            const uniqueColors = ['rgba(128, 128, 128, 0.8)'];
+
+                            const config = {{
+                                type: 'bar',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'Not enough data',
+                                        data: data,
+                                        backgroundColor: uniqueColors,
+                                        borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                        borderWidth: 1
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: false }}
+                                    }},
+                                    scales: {{
+                                        y: {{
+                                            beginAtZero: true,
+                                            title: {{
+                                                display: true,
+                                                text: 'Value',
+                                                font: {{ size: 14 }}
+                                            }}
+                                        }},
+                                        x: {{
+                                            title: {{
+                                                display: true,
+                                                text: 'Category',
+                                                font: {{ size: 14 }}
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                result = result.dropna(subset=cols)
+
+                labels = result[cols[0]].tolist()
+                data = result[cols[1]].tolist()
+                
+                unique_colors = generate_unique_colors(len(labels))
+
+                if result.empty:
+                    print('came for no values')
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Column Chart</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['No values'];
+                            const data = [1];
+                            const uniqueColors = ['rgba(128, 128, 128, 0.8)'];
+
+                            const config = {{
+                                type: 'bar',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'No values',
+                                        data: data,
+                                        backgroundColor: uniqueColors,
+                                        borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                        borderWidth: 1,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: false }}
+                                    }},
+                                    scales: {{
+                                        y: {{
+                                            beginAtZero: true,
+                                            title: {{
+                                                display: true,
+                                                text: 'Value',
+                                                font: {{ size: 14 }}
+                                            }}
+                                        }},
+                                        x: {{
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[0]}',
+                                                font: {{ size: 14 }}
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Interactive Column Chart</title>
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                </head>
+                <body>
+                    <div style="width: 75%; margin: auto;">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                    <script>
+                        const uniqueColors = {json.dumps(unique_colors)};
+                        const labels = {json.dumps(labels)};
+                        const data = {json.dumps(data)};
+
+                        const config = {{
+                            type: 'bar',
+                            data: {{
+                                labels: labels,
+                                datasets: [{{
+                                    label: '{cols[1]}',
+                                    data: data,
+                                    backgroundColor: uniqueColors,
+                                    borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                    borderWidth: 1,
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                plugins: {{
+                                    title: {{
+                                        display: true,
+                                        text: '{Input}',
+                                        font: {{ size: 18 }}
+                                    }},
+                                    tooltip: {{
+                                        mode: 'index',
+                                        intersect: false,
+                                    }},
+                                    legend: {{ display: false }}
+                                }},
+                                scales: {{
+                                    y: {{
+                                        beginAtZero: true,
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[1]}',
+                                            font: {{ size: 14 }}
+                                            }}
+                                        }},
+                                    x: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[0]}',
+                                            font: {{ size: 14 }}
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                        const ctx = document.getElementById('myChart').getContext('2d');
+                        new Chart(ctx, config);
+                    </script>
+                </body>
+                </html>
+                """
+
+                with open('static/chart.html', 'w') as f:
+                    f.write(html_content)
+        
+            def generate_area_chart(Input, result):
+                if isinstance(result, list):
+                    if len(result) > 1:
+                        result = pd.DataFrame(result[1:], columns=result[0])
+                    else:
+                        result = pd.DataFrame()
+
+                if not isinstance(result, pd.DataFrame):
+                    raise ValueError("result should be a pandas DataFrame or convertible to one.")
+
+                cols = result.columns.tolist()
+                
+                if len(cols) < 2:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Area Chart</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['Not enough data'];
+                            const data = [1];
+                            const backgroundColor = 'rgba(128, 128, 128, 0.5)';
+                            const borderColor = 'rgba(128, 128, 128, 1)';
+
+                            const config = {{
+                                type: 'line',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'Not enough data',
+                                        data: data,
+                                        backgroundColor: backgroundColor,
+                                        borderColor: borderColor,
+                                        fill: true,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: true }}
+                                    }},
+                                    scales: {{
+                                        x: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[0] if len(cols) > 0 else "X Axis"}'
+                                            }}
+                                        }},
+                                        y: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[1] if len(cols) > 1 else "Y Axis"}'
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                result = result.dropna(subset=cols)
+
+                labels = result[cols[0]].tolist()
+                data = result[cols[1]].tolist()
+                
+                if result.empty:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Area Chart</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['No values'];
+                            const data = [1];
+                            const backgroundColor = 'rgba(128, 128, 128, 0.5)';
+                            const borderColor = 'rgba(128, 128, 128, 1)';
+
+                            const config = {{
+                                type: 'line',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'No values',
+                                        data: data,
+                                        backgroundColor: backgroundColor,
+                                        borderColor: borderColor,
+                                        fill: true,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: true }}
+                                    }},
+                                    scales: {{
+                                        x: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[0] if len(cols) > 0 else "X Axis"}'
+                                            }}
+                                        }},
+                                        y: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[1] if len(cols) > 1 else "Y Axis"}'
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Interactive Area Chart</title>
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                </head>
+                <body>
+                    <div style="width: 75%; margin: auto;">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                    <script>
+                        const labels = {json.dumps(labels)};
+                        const data = {json.dumps(data)};
+                        const backgroundColor = 'rgba(75, 192, 192, 0.5)';
+                        const borderColor = 'rgba(75, 192, 192, 1)';
+
+                        const config = {{
+                            type: 'line',
+                            data: {{
+                                labels: labels,
+                                datasets: [{{
+                                    label: '{cols[1]}',
+                                    data: data,
+                                    backgroundColor: backgroundColor,
+                                    borderColor: borderColor,
+                                    fill: true,
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                plugins: {{
+                                    title: {{
+                                        display: true,
+                                        text: '{Input}',
+                                        font: {{ size: 18 }}
+                                    }},
+                                    tooltip: {{
+                                        mode: 'index',
+                                        intersect: false,
+                                    }},
+                                    legend: {{ display: true }}
+                                }},
+                                scales: {{
+                                    x: {{
+                                        display: true,
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[0]}'
+                                        }}
+                                    }},
+                                    y: {{
+                                        display: true,
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[1]}'
+                                        }}
+                                    }}
+                                }}
+                            }}
+                        }};
+
+                        const ctx = document.getElementById('myChart').getContext('2d');
+                        new Chart(ctx, config);
+                    </script>
+                </body>
+                </html>
+                """
+
+                with open('static/chart.html', 'w') as f:
+                    f.write(html_content)
+
+            def generate_line_chart(Input, result):
+                if isinstance(result, list):
+                    if len(result) > 1:
+                        result = pd.DataFrame(result[1:], columns=result[0])
+                    else:
+                        result = pd.DataFrame()
+
+                if not isinstance(result, pd.DataFrame):
+                    raise ValueError("result should be a pandas DataFrame or convertible to one.")
+
+                cols = result.columns.tolist()
+
+                if len(cols) < 2:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Line Chart</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['Not enough data'];
+                            const data = [1];
+                            const backgroundColor = 'rgba(128, 128, 128, 0.5)';
+                            const borderColor = 'rgba(128, 128, 128, 1)';
+
+                            const config = {{
+                                type: 'line',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'Not enough data',
+                                        data: data,
+                                        backgroundColor: backgroundColor,
+                                        borderColor: borderColor,
+                                        fill: false,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: true }}
+                                    }},
+                                    scales: {{
+                                        x: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[0] if len(cols) > 0 else "X Axis"}'
+                                            }}
+                                        }},
+                                        y: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[1] if len(cols) > 1 else "Y Axis"}'
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                result = result.dropna(subset=cols)
+
+                labels = result[cols[0]].tolist()
+                data = result[cols[1]].tolist()
+                
+                if result.empty:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Line Chart</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['No values'];
+                            const data = [1];
+                            const backgroundColor = 'rgba(128, 128, 128, 0.5)';
+                            const borderColor = 'rgba(128, 128, 128, 1)';
+
+                            const config = {{
+                                type: 'line',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'No values',
+                                        data: data,
+                                        backgroundColor: backgroundColor,
+                                        borderColor: borderColor,
+                                        fill: false,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: true }}
+                                    }},
+                                    scales: {{
+                                        x: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[0] if len(cols) > 0 else "X Axis"}'
+                                            }}
+                                        }},
+                                        y: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[1] if len(cols) > 1 else "Y Axis"}'
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                unique_colors = generate_unique_colors(len(labels))
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Interactive Line Chart</title>
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                </head>
+                <body>
+                    <div style="width: 75%; margin: auto;">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                    <script>
+                        const uniqueColors = {json.dumps(unique_colors)};
+                        const labels = {json.dumps(labels)};
+                        const data = {json.dumps(data)};
+                        const backgroundColor = 'rgba(75, 192, 192, 0.5)';
+                        const borderColor = 'rgba(75, 192, 192, 1)';
+
+                        const config = {{
+                            type: 'line',
+                            data: {{
+                                labels: labels,
+                                datasets: [{{
+                                    label: '{cols[1]}',
+                                    data: data,
+                                    backgroundColor: backgroundColor,
+                                    borderColor: borderColor,
+                                    fill: false,
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                plugins: {{
+                                    title: {{
+                                        display: true,
+                                        text: '{Input}',
+                                        font: {{ size: 18 }}
+                                    }},
+                                    tooltip: {{
+                                        mode: 'index',
+                                        intersect: false,
+                                    }},
+                                    legend: {{ display: true }}
+                                }},
+                                scales: {{
+                                    x: {{
+                                        display: true,
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[0]}'
+                                        }}
+                                    }},
+                                    y: {{
+                                        display: true,
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[1]}'
+                                        }}
+                                    }}
+                                }}
+                            }}
+                        }};
+
+                        const ctx = document.getElementById('myChart').getContext('2d');
+                        new Chart(ctx, config);
+                    </script>
+                </body>
+                </html>
+                """
+
+                with open('static/chart.html', 'w') as f:
+                    f.write(html_content)
+
+            def generate_count_plot(Input, result):
+                if isinstance(result, list):
+                    if len(result) > 1:
+                        result = pd.DataFrame(result[1:], columns=result[0])
+                    else:
+                        result = pd.DataFrame()
+
+                if not isinstance(result, pd.DataFrame):
+                    raise ValueError("result should be a pandas DataFrame or convertible to one.")
+
+                cols = result.columns.tolist()
+
+                if len(cols) < 1:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Count Plot</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['Not enough data'];
+                            const data = [1];
+                            const backgroundColor = 'rgba(128, 128, 128, 0.5)';
+                            const borderColor = 'rgba(128, 128, 128, 1)';
+
+                            const config = {{
+                                type: 'bar',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'Not enough data',
+                                        data: data,
+                                        backgroundColor: backgroundColor,
+                                        borderColor: borderColor,
+                                        borderWidth: 1,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: true }}
+                                    }},
+                                    scales: {{
+                                        x: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[0] if len(cols) > 0 else "X Axis"}'
+                                            }}
+                                        }},
+                                        y: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: 'Count'
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                count_data = result[cols[0]].value_counts().reset_index()
+                count_data.columns = [cols[0], 'count']
+
+                labels = count_data[cols[0]].tolist()
+                data = count_data['count'].tolist()
+
+                if count_data.empty:
+                    html_content = f"""
+                    <!DOCTYPE html>
+                    <html lang="en">
+                    <head>
+                        <meta charset="UTF-8">
+                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                        <title>Interactive Count Plot</title>
+                        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                    </head>
+                    <body>
+                        <div style="width: 75%; margin: auto;">
+                            <canvas id="myChart"></canvas>
+                        </div>
+                        <script>
+                            const labels = ['No values'];
+                            const data = [1];
+                            const backgroundColor = 'rgba(128, 128, 128, 0.5)';
+                            const borderColor = 'rgba(128, 128, 128, 1)';
+
+                            const config = {{
+                                type: 'bar',
+                                data: {{
+                                    labels: labels,
+                                    datasets: [{{
+                                        label: 'No values',
+                                        data: data,
+                                        backgroundColor: backgroundColor,
+                                        borderColor: borderColor,
+                                        borderWidth: 1,
+                                    }}]
+                                }},
+                                options: {{
+                                    responsive: true,
+                                    plugins: {{
+                                        title: {{
+                                            display: true,
+                                            text: '{Input}',
+                                            font: {{ size: 18 }}
+                                        }},
+                                        tooltip: {{
+                                            mode: 'index',
+                                            intersect: false,
+                                        }},
+                                        legend: {{ display: true }}
+                                    }},
+                                    scales: {{
+                                        x: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: '{cols[0] if len(cols) > 0 else "X Axis"}'
+                                            }}
+                                        }},
+                                        y: {{
+                                            display: true,
+                                            title: {{
+                                                display: true,
+                                                text: 'Count'
+                                            }}
+                                        }}
+                                    }}
+                                }}
+                            }};
+
+                            const ctx = document.getElementById('myChart').getContext('2d');
+                            new Chart(ctx, config);
+                        </script>
+                    </body>
+                    </html>
+                    """
+                    with open('static/chart.html', 'w') as f:
+                        f.write(html_content)
+                    return
+
+                unique_colors = generate_unique_colors(len(labels))
+
+                html_content = f"""
+                <!DOCTYPE html>
+                <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Interactive Count Plot</title>
+                    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                </head>
+                <body>
+                    <div style="width: 75%; margin: auto;">
+                        <canvas id="myChart"></canvas>
+                    </div>
+                    <script>
+                        const uniqueColors = {json.dumps(unique_colors)};
+                        const labels = {json.dumps(labels)};
+                        const data = {json.dumps(data)};
+
+                        const config = {{
+                            type: 'bar',
+                            data: {{
+                                labels: labels,
+                                datasets: [{{
+                                    label: 'Count',
+                                    data: data,
+                                    backgroundColor: uniqueColors,
+                                    borderColor: uniqueColors.map(color => color.replace('0.8', '1')),
+                                    borderWidth: 1,
+                                }}]
+                            }},
+                            options: {{
+                                responsive: true,
+                                plugins: {{
+                                    title: {{
+                                        display: true,
+                                        text: '{Input}',
+                                        font: {{ size: 18 }}
+                                    }},
+                                    tooltip: {{
+                                        mode: 'index',
+                                        intersect: false,
+                                    }},
+                                    legend: {{ display: true }}
+                                }},
+                                scales: {{
+                                    x: {{
+                                        display: true,
+                                        title: {{
+                                            display: true,
+                                            text: '{cols[0]}'
+                                        }}
+                                    }},
+                                    y: {{
+                                        display: true,
+                                        title: {{
+                                            display: true,
+                                            text: 'Count'
+                                        }}
+                                    }}
+                                }}
+                            }}
+                        }};
+
+                        const ctx = document.getElementById('myChart').getContext('2d');
+                        new Chart(ctx, config);
+                    </script>
+                </body>
+                </html>
+                """
+
+                with open('static/chart.html', 'w') as f:
+                    f.write(html_content)
+
+            if "bar chart" in Input.lower():
+                generate_bar_chart(Input, result)
+            elif 'pie chart' in Input.lower():
+                generate_pie_chart(Input, result)
+            elif 'scatter chart' in Input.lower():
+                generate_scatter_plot(Input, result)
+            elif 'column chart' in Input.lower():
+                generate_column_chart(Input, result)
+            elif 'area chart' in Input.lower():
+                generate_area_chart(Input, result)
+            elif 'line chart' in Input.lower():
+                generate_line_chart(Input, result)
+            elif 'count chart' in Input.lower():
+                generate_count_plot(Input, result)
+            else:
+                print('No specific chart mentioned')
+            
+
+            response = {
+                "input": Input,
+                "sql_query": sql_query,
+                "output": "Visualization Generated",
+                "chart_filename": "/static/chart.html"
+            }
+
+            return sql_query, None, response, selected_database, selected_datasource, mode
+        
+        elif mode == 'developer_mode':
+            print('Final_resut_dev_mode_for_visual')
+            sql_query = sql_query_generator(Input,selected_database,selected_datasource,mode)
+            return sql_query, mode
+            
     elif any(word in classification.lower() for word in ['table']):
-        sql_query, out = sql_query_generator(Input,selected_database)
-        d_f = pd.DataFrame(out)
-        return sql_query, d_f, None, selected_database
+        if mode == 'user_mode':
+            print('Final_resut_user_mode_for_table')
+            sql_query, out,col_name, mode_ = sql_query_generator(Input,selected_database,selected_datasource,mode)
+            d_f = pd.DataFrame(out,columns=col_name)
+            return sql_query, d_f, None, selected_database,selected_datasource, mode
+        elif mode == 'developer_mode':
+            print('Final_resut_dev_mode_for_table')
+            sql_query = sql_query_generator(Input,selected_database,selected_datasource,mode)
+            return sql_query, mode
     
     else:
-        sql_query, out = sql_query_generator(Input,selected_database)
+        if mode == 'user_mode':
+            print('Final_resut_user_mode_for_NL')
+            sql_query, out,col_name,mode = sql_query_generator(Input,selected_database,selected_datasource,mode)
 
-        prompt_1 = f"""
+            prompt_1 = f"""
 
-Instructions:
-Given a question {Input} and the corresponding answer you should reframe the answer in natural language.
-Don't use words outside the scope which are not there in either question or answer. Never give any additional content in the response.
+    Instructions:
+    Given a question {Input} and the corresponding answer you should reframe the answer in natural language.
+    Don't use words outside the scope which are not there in either question or answer. Never give any additional content in the response.
 
-Below are the example Questions and their Answers and how you should Respond.
+    Below are the example Questions and their Answers and how you should Respond.
 
-Example:
+    Example:
 
-Question: What is the average age of the patients?;
-Answer: 30;
-Your Response: The average age of patients is 30.
+    Question: What is the average age of the patients?;
+    Answer: 30;
+    Your Response: The average age of patients is 30.
 
-Question: How many rows are present in the doctor table?;
-Answer: 20;
-Your Response: There are 20 rows present in the doctor's table.
+    Question: How many rows are present in the doctor table?;
+    Answer: 20;
+    Your Response: There are 20 rows present in the doctor's table.
 
-Question: Delete the phone numbers for the doctor whose specialization is Cardiology;
-Answer: Query executed successfully: 4 rows affected.
-Your Response: The phone number for the doctor whose specialization is Cardiology has been deleted.
+    Question: Delete the phone numbers for the doctor whose specialization is Cardiology;
+    Answer: Query executed successfully: 4 rows affected.
+    Your Response: The phone number for the doctor whose specialization is Cardiology has been deleted.
 
-Question: Update the phone numbers for the doctor whose specialization is Neurology;
-Answer: Query executed successfully: 10 rows affected.
-Your Response: The phone number for the doctor whose specialization is Neurology has been updated.
+    Question: Update the phone numbers for the doctor whose specialization is Neurology;
+    Answer: Query executed successfully: 10 rows affected.
+    Your Response: The phone number for the doctor whose specialization is Neurology has been updated.
 
-Question: Replace the phone numbers for the doctor whose specialization is Oncology;
-Answer: Query executed successfully: 15 rows affected.
-Your Response: The phone number for the doctor whose specialization is Oncology has been replaced.
+    Question: Replace the phone numbers for the doctor whose specialization is Oncology;
+    Answer: Query executed successfully: 15 rows affected.
+    Your Response: The phone number for the doctor whose specialization is Oncology has been replaced.
 
-Question: Insert the phone number for the doctor whose specialization is Oncology where it is null;
-Answer: Query executed successfully: 0 rows affected.
-Your Response: The phone number for the doctor whose specialization is Oncology has been inserted where it was null.
+    Question: Insert the phone number for the doctor whose specialization is Oncology where it is null;
+    Answer: Query executed successfully: 0 rows affected.
+    Your Response: The phone number for the doctor whose specialization is Oncology has been inserted where it was null.
 
-Question: {Input};
-Answer: {out};
+    Question: {Input};
+    Answer: {out};
 
-additional_hints
+    additional_hints
 
-You should only give the {'Your Response'} part. Don't give any other comments in the response.
-"""
-        nl_response = call_openai_gpt(prompt_1)
+    You should only give the {'Your Response'} part. Don't give any other comments in the response.
+    """
+            nl_response = call_openai_gpt(prompt_1)
 
-        return sql_query, nl_response, None, selected_database
+            return sql_query, nl_response, None, selected_database, selected_datasource, mode
+        elif mode == 'developer_mode':
+            print('Final_resut_dev_mode_for_NL')
+            sql_query = sql_query_generator(Input,selected_database,selected_datasource,mode)
 
-
-## handle empty value for bar chart 
-
-# import matplotlib.pyplot as plt
-# import numpy as np
-
-# def generate_pie_chart(Input, result):
-#     cols = result.columns.tolist()
-#     result = result.dropna(subset=cols)
-
-#     if result.empty:
-#         # Create a bar chart with "No values" message
-#         fig, ax = plt.subplots(figsize=(16, 8))
-#         ax.barh(['No values'], [1], color='gray')
-#         ax.set_yticks([])
-#         ax.set_xlim(0, 1)
-#         ax.text(0.5, 0, 'No values', ha='center', va='center', fontsize=15, color='red')
-#         plt.title(f"Pie Chart: {Input}", fontweight='bold')
-#         plt.savefig('static/chart.png')
-#         plt.close()
-#     else:
-#         plt.figure(figsize=(16, 8))
-#         wedges, labels, _ = plt.pie(result[cols[1]], autopct='%1.1f%%', pctdistance=0.85)
-
-#         num_labels = len(labels)
-#         cmap = plt.get_cmap('tab20')
-#         colors = cmap(np.linspace(0, 1, num_labels))
-#         legend_labels = result[cols[0]]
-#         legend_handles = []
-#         for i, label in enumerate(legend_labels):
-#             legend_handles.append(plt.Rectangle((0, 0), 0.5, 0.5, color=colors[i], label=label))
-#         plt.legend(handles=legend_handles, loc='right', bbox_to_anchor=(1.5, 0.5), title=cols[0])
-
-#         for i, wedge in enumerate(wedges):
-#             wedge.set_facecolor(colors[i])
-
-#         plt.title(f"Pie Chart: {Input}", fontweight='bold')
-#         plt.savefig('static/chart.png')
-#         plt.close()
+            return sql_query, mode

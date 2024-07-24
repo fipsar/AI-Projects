@@ -86,6 +86,30 @@
             font-weight: bold;
             color: #333;
         }
+
+        /* .loader {
+            position: fixed;
+            top: 65%;
+            left: 55%;
+            transform: translate(-50%, -50%);
+            z-index: 1000;
+        }
+
+        .cs-loader {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .cs-loader-inner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container.css-form {
+            position: relative;
+        } */
     </style>
 </head>
 
@@ -104,13 +128,13 @@
         </div>
     </header>
 
-    <!-- <div class="container css-form mt-5"> -->
+    <div class="container css-form mt-5">
     <div class="chat-container">
         <div class="whole-css">
             <div class="forms mt-3">
                 <form id="chat" action="/chat" method="post" enctype="multipart/form-data" autocomplete="on">
-                    <div style="display: flex;height: 270px;">
-                        <div class="container css-form mt-5" style="width: fit-content; height: 270px;">
+                    <div style="display: flex;">
+                        <div class="container css-form mt-5" style="width: fit-content;">
                             <div class="mb-3">
                                 <label class="form-label">Select Your DataSource</label>
                                 <select class="form-select" id="datasourceSelect" name="datasourceSelect"
@@ -155,7 +179,7 @@
                             </div>
                         </div>
 
-                        <div class="container css-form mt-5" style="height: 270px;">
+                        <div class="container css-form mt-5">
                             <div class="mb-3">
                                 <label class="form-label">Enter Your Question</label>
                                 <div class="search-all-ic">
@@ -192,8 +216,8 @@
                         </div>
                 </form>
                 <div class="container css-form mt-5" id="vis_table_res_container"
-                    style="width:350px;height: 270px; box-shadow: none;">
-                    <p>Hello testing Ui part for the Side visual</p>
+                    style="width:350px;height: 350px; box-shadow: none;">
+                    <!-- <p>Hello testing Ui part for the Side visual</p> -->
                 </div>
             </div>
         </div>
@@ -201,7 +225,7 @@
     <!-- </div> -->
     <!-- </div> -->
 
-    <div class="loader" id="loader">
+    <div class="loader" id="loader" style="display: none;">
         <div class="cs-loader">
             <div class="cs-loader-inner">
                 <label style="color: #0b3396;">●</label>

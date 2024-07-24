@@ -26,3 +26,44 @@ FROM public.doctor
 WHERE Phone = '';","112	Elaine	Filipczynski	Ortho	
 120	Carly	Panons	Ortho	
 144	Beitris	Guinnane	Ortho	",Negative,Other,
+2024-07-12 15:24:56,,How many rows are present in the doctors table?,Natural Language Response,SELECT COUNT(*) FROM healthcare.doctors;,The count of rows present in the doctors table is 20.,positive,,
+2024-07-12 15:34:53,,Generate the bar chart for the distinct count of coverage details?,Table Format Response,"SELECT CoverageDetails, COUNT(DISTINCT InsuranceID) as Count FROM healthcare.insurance GROUP BY CoverageDetails;",Open Visualization,positive,,
+2024-07-12 15:42:14,,List out the Provider names and Policy number present in the insurance table?,Natural Language Response,"SELECT ProviderName, PolicyNumber FROM healthcare.insurance;","S.No	0	1
+1	Blue Cross	BC12345
+2	United Health	UH67890
+3	Aetna	AE11223
+4	Cigna	CI44556
+5	Humana	HU78901
+6	Kaiser	KA23412
+7	Molina	MO34523
+8	WellCare	WE45634
+9	Centene	CE56745
+10	Anthem	AN67856",positive,,
+2024-07-12 15:42:18,,List out the Provider names and Policy number present in the insurance table?,Natural Language Response,"SELECT ProviderName, PolicyNumber FROM healthcare.insurance;","S.No	0	1
+1	Blue Cross	BC12345
+2	United Health	UH67890
+3	Aetna	AE11223
+4	Cigna	CI44556
+5	Humana	HU78901
+6	Kaiser	KA23412
+7	Molina	MO34523
+8	WellCare	WE45634
+9	Centene	CE56745
+10	Anthem	AN67856",Negative,Other,
+2024-07-12 17:19:39,,Rephrased Question: Show me a pie chart for the count of specialization.,Visual Response,"SELECT Specialty, COUNT(*) AS Count
+FROM healthcare.doctors
+GROUP BY Specialty;",,Positive,,
+2024-07-12 17:19:40,,Rephrased Question: Show me a pie chart for the count of specialization.,Visual Response,"SELECT Specialty, COUNT(*) AS Count
+FROM healthcare.doctors
+GROUP BY Specialty;",,Positive,,
+2024-07-12 17:19:47,,Rephrased Question: Show me a pie chart for the count of specialization.,Visual Response,"SELECT Specialty, COUNT(*) AS Count
+FROM healthcare.doctors
+GROUP BY Specialty;",,Negative,Incorrect SQL Query,good
+2024-07-15 22:50:47,,Generate a bar chart for the count of specialization,Table Format Response,"SELECT Email, COUNT(*) AS Count FROM healthcare.doctors GROUP BY Email;",Open Visualization,positive,,
+2024-07-17 13:10:00,,How many rows are present in the doctors table?,Table Format Response,SELECT COUNT(*) FROM healthcare.test;,Open Visualization,positive,,
+2024-07-17 18:31:25,,Generate the bar chart for the distinct count of coverage details?,Visual Response,SELECT COUNT(DISTINCT CoverageDetails) AS CoverageCount FROM healthcare.insurance;,,Positive,,
+2024-07-17 20:49:42,,Generate the bar chart for the distinct count of coverage details?,Visual Response,"SELECT CoverageDetails, COUNT(DISTINCT InsuranceID) AS Count
+FROM healthcare.insurance
+GROUP BY CoverageDetails;",,Positive,,
+2024-07-18 13:49:13,,list out the doctors name,Natural Language Response,"SELECT FirstName, LastName
+FROM healthcare.doctors;",The doctors' names are: 1. Dr. John Smith 2. Dr. Emily Clark 3. Dr. Michael Johnson 4. Dr. Sarah Brown 5. Dr. David Jones 6. Dr. Lisa Wilson 7. Dr. Robert Davis 8. Dr. Karen Martinez 9. Dr. James Garcia 10. Dr. Patricia Miller 11. Dr. Charles Martinez 12. Dr. Barbara Anderson 13. Dr. Thomas Thomas 14. Dr. Linda Jackson 15. Dr. Richard White 16. Dr. Susan Lewis 17. Dr. Nancy Martin 18. Dr. Mark Hernandez 19. Dr. Laura Lopez 20. Dr. Richard Gonzalez,positive,,

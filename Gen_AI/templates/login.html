@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap/css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap/css/bootstrap.min.css') }}">
+    <!-- Optional Bootstrap Icons -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='lib/bootstrap-icons/bootstrap-icons.css') }}">
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Your Custom CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="container header-conmtainer-align">
+            <div class="header-flexing">
+                <div class="header-flex-one">
+                    <img src="{{ url_for('static', filename='images/favicon.jpg') }}" width="135px">
+                </div>
+                <div class="header-flex-two">
+                    <h4 class="h4-headers" style="margin-bottom: 0px; font-size: 22px; padding-left: 100px;">Login to continue</h4>
+                </div>
+                <div class="header-flex-three">
+                    <p style="margin-bottom: 0px"></p>
+                </div>
+            </div>
+        </div>
+    </header>
+<div class="container css-form mt-5">
+    <div class="whole-css">
+    {% if message %}
+    <div class="alert alert-danger" role="alert">
+        {{ message }}
+    </div>
+    {% endif %}
+        <form method="post">
+        <div class="forms mt-3">
+            <div class="mb-3">
+                <label for="username" class="form-label">Username</label>
+                <div class="input-group">
+                    <input type="text" class="form-control" id="username" name="username" required>
+                </div>
+            </div>
+            <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <div class="input-group">
+                    <input type="password" class="form-control" id="password" name="password" required>
+                </div>
+                <button class="btn btn-sub mt-2" >Login</button>
+            </div>
+        </div>
+        </form>
+    </div>
+</div>
+
+</body>
+</html>
+

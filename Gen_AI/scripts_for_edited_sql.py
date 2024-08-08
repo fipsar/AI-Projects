@@ -16,12 +16,15 @@ from dotenv import load_dotenv
 from flask import session
 import psycopg2
 import re
-from scripts import connection,call_openai_gpt
+from scripts import connection,call_openai_gpt,extract_column_names,count_tokens
 import colorsys
+import logging
+import logging_config
+
 
 
 def ai_result(Input, classification_dev, edited_sql, selected_datasource, selected_database, mode):
-    print('Entering_ai_result')
+    col_name = extract_column_names(edited_sql)
     result = connection(edited_sql, selected_datasource)
     if any(word.lower() in classification_dev.lower() for word in ['visualization']):
         if mode == 'developer_mode':
@@ -491,7 +494,7 @@ def ai_result(Input, classification_dev, edited_sql, selected_datasource, select
         if mode == 'developer_mode':
             print('Handling_table_res_for_dev_mode')
             result = connection(edited_sql, selected_datasource)
-            d_f = pd.DataFrame(result)
+            d_f = pd.DataFrame(result,columns=col_name)
             return d_f, None, selected_database, selected_datasource, mode
         
     else:
@@ -546,6 +549,12 @@ Never add any additional content in the response.
 Must execute when {edited_sql} contains SQL.
 Given the edited SQL query {edited_sql} and the corresponding answer based on {result}, reframe the answer in natural language and strictly do not give the previous 
 question's answer.
-    """
+    """     
+            input_token_prompt_for_ai_res = count_tokens(prompt_1)
+            # print(input_token_prompt_for_ai_res,'input_token_prompt_for_ai_res')
+            logging.info(f"{input_token_prompt_for_ai_res} - input_token_prompt_for_ai_res")
             nl_response = call_openai_gpt(prompt_1)
+            dev_mode_output_token_count_nl_response = count_tokens(nl_response)
+            # print(dev_mode_output_token_count_nl_response,'dev_mode_output_token_count_nl_response')
+            logging.info(f"{dev_mode_output_token_count_nl_response} - dev_mode_output_token_count_nl_response")
             return nl_response, None, selected_database,selected_datasource, mode

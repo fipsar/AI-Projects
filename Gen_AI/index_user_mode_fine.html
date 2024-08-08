@@ -214,7 +214,6 @@
                                 </div>
                             </div>
                             <div class="col-lg-4 demo-heig">
-                                <!-- __________________user_mode_side_response_______________________ -->
                                 <div class="" id="vis_table_res_container">
                                     {% if response and not response['mode'] %}
                                     {% if response.error_message %}
@@ -235,9 +234,9 @@
                                                 href="{{ url_for('static', filename='chart.html') }}"
                                                 download="chart.html" class="btn" onclick="downloadChart()"><i
                                                     class="bi bi-download"></i></a>
-                                            <a href="javascript:;" class="btn btn-volumne" id="speak"
+                                            <!-- <a href="javascript:;" class="btn btn-volumne" id="speak"
                                                 onclick="tellResponse(`{{response.output}}`)"><i
-                                                class="fa fa-volume-up" aria-hidden="true"></i></a>
+                                                class="fa fa-volume-up" aria-hidden="true"></i></a> -->
                                         </div>
                                     </div>
                                     <div id="visuals_side_res">
@@ -245,6 +244,40 @@
                                             style="border: #0b3396; width: 100%; height: 100%;"></iframe>
 
                                     </div>
+                                    <!-- <div>
+                                    <div class="button-alignse mt-2 mb-2">
+                                        <a class="btn btn-hovers-up" style="font-size: 20px;"
+                                            onclick="recordFeedback('Positive')"><i class="fa fa-thumbs-up"></i></a>
+                                        <a class="btn btn-hovers-down" id="thumbsDownBtn" style="font-size: 20px;"><i
+                                                class="fa fa-thumbs-down"></i></a>
+                                    </div>
+                                    <div class="thumbs-iup-p text-center" style="display: none;">
+                                        <p class="blink">Feedback Submitted Successfully...!</p>
+                                    </div>
+                                    <div class="thuumbs-p-sugg " id="thumbsDownDiv" style="display: none;">
+                                        <p style="font-weight: bolder;">Why do you choose this rating?</p>
+                                        <div class="checkbox-flexing mb-3">
+                                            <div class="form-check">
+                                                <label class="form-check-label" style="font-weight: 500;">
+                                                    <input class="form-check-input" type="checkbox" id="incorrectSqlCheckbox">
+                                                    Incorrect SQL Query
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <label class="form-check-label" style="font-weight: 500;">
+                                                    <input class="form-check-input" type="checkbox" id="otherCheckbox">
+                                                    Other
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <textarea class="form-control mb-3" id="feedbackComment"
+                                            placeholder="Feedback"></textarea>
+                                        <div class="text-center">
+                                            <a class="btn btn-sub" onclick="recordFeedback('Negative')">Submit</a>
+                                        </div>
+        
+                                    </div>
+                                </div> -->
                                     {% else %}
                                     <div id="response_text_side">
                                         <div class="copy-button-aig  flexing-table">
@@ -270,70 +303,12 @@
                                             <strong class="mt-3 copy-contents">{{ response['output'] | safe }}</strong>
                                         </div>
                                     </div>
-                                    {% endif %}
-                                    {% endif %}
-                                    {% if response and response['mode'] %}
-                                    {% if response.error_message %}
-                                    <div class="mt-3">
-                                        <p>Response:</p>
-                                        <strong class="mt-3">{{ response.error_message | safe }}</strong>
-                                    </div>
-                                    {% endif %}
-                                    {% if response.ai_res == "Visualization Generated" %}
-                                    <div class="copy-button-aig  flexing-table">
-                                        <div>
-                                            <p id="ai_res_txt" style="font-weight: 500;">Response:</p>
-                                        </div>
-                                        <div class="align-fr-copy-two" id="speaker_copy_icon" style="display: none;">
-                                            <a href="javascript:;" class="btn" onclick="enlargeContent('chart')"><i
-                                                    class="bi bi-arrows-angle-expand"></i></a>
-                                            <a id="downloadChartButton"
-                                                href="{{ url_for('static', filename='chart.html') }}"
-                                                download="chart.html" class="btn" onclick="downloadChart()"><i
-                                                    class="bi bi-download"></i></a>
-                                            <a href="javascript:;" class="btn btn-volumne" id="speak"
-                                                onclick="tellResponse(`{{response.ai_res}}`)"><i class="fa fa-volume-up"
-                                                    aria-hidden="true"></i></a>
-                                        </div>
-                                    </div>
-                                    <div id="visuals_side_res">
-                                        <iframe id="chartIframe" src="{{ url_for('static', filename='chart.html') }}"
-                                            style="border: #0b3396; width: 100%; height: 100%;"></iframe>
 
-                                    </div>
-                                    {% else %}
-                                    <div id="response_text_side">
-                                        <div class="copy-button-aig  flexing-table">
-                                            <div>
-                                                <p id="ai_res_txt" style="font-weight: 500; display: none;">Response</p>
-                                            </div>
 
-                                            <div class="align-fr-copy-two" id="speaker_copy_icon"
-                                                style="display: none;">
-                                                <a href="javascript:;" class="btn" onclick="enlargeContent('table')"><i
-                                                        class="bi bi-arrows-angle-expand"></i></a>
-                                                <a href="javascript:;" class="btn" onclick="downloadTable()"><i
-                                                        class="bi bi-download"></i></a>
-                                                <a class="btn btn-volumne" id="speak"
-                                                    onclick="tellResponse(`{{response.ai_res}}`)"><i
-                                                        class="fa fa-volume-up" aria-hidden="true"></i></a>
-                                                <a href="javascript:;" class="btn" onclick="copyContentsAndMore()"><i
-                                                        class="fa fa-clone" id="clipboard_icon"></i>
-                                                    <i class="fa fa-check" id="tick_icon"
-                                                        style="display: none;color: #0687ce;border: #0687ce"></i></a>
-                                            </div>
-                                        </div>
-                                        <div id="res_text_side">
-                                            <strong class="mt-3 copy-contents">{{ response['ai_res'] | safe }}</strong>
-                                        </div>
-                                    </div>
+
                                     {% endif %}
                                     {% endif %}
                                 </div>
-                                <!-- __________________dev_mode_side_response_______________________ -->
-                                <!-- <div class="" id="vis_table_res_container">
-                                    
-                                </div> -->
                             </div>
                 </form>
 
@@ -342,12 +317,100 @@
     </div>
     </div>
     </div>
-    <!-- ----------------------------------below_container------------------------------------------- -->
+
+
+
+
+
+    <!-- {% if response and not response['mode'] %}
+                    {% if response.output == "Visualization Generated" %}
+                    <div style="display: flex;">
+                        <div class="button-alignse mt-2 mb-2">
+                            <button class="btn btn-hovers-up" style="font-size: 20px;"
+                                onclick="recordFeedback('Positive')"><i class="fa fa-thumbs-up"></i></button>
+                            <button class="btn btn-hovers-down" id="thumbsDownBtn" style="font-size: 20px;"><i
+                                    class="fa fa-thumbs-down"></i></button>
+                        </div>
+                        <div class="thumbs-iup-p text-center" style="display: none;">
+                            <p class="blink">Feedback Submitted Successfully...!</p>
+                        </div>
+                        <div class="thuumbs-p-sugg " id="thumbsDownDiv" style="display: none;">
+                            <p style="font-weight: bolder;">Why do you choose this rating?</p>
+                            <div class="checkbox-flexing mb-3">
+                                <div class="form-check">
+                                    <label class="form-check-label" style="font-weight: 500;">
+                                        <input class="form-check-input" type="checkbox" id="incorrectSqlCheckbox">
+                                        Incorrect SQL Query
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <label class="form-check-label" style="font-weight: 500;">
+                                        <input class="form-check-input" type="checkbox" id="otherCheckbox">
+                                        Other
+                                    </label>
+                                </div>
+                            </div>
+                            <textarea class="form-control mb-3" id="feedbackComment" placeholder="Feedback"></textarea>
+                            <div class="text-center">
+                                <button class="btn btn-sub" onclick="recordFeedback('Negative')">Submit</button>
+                            </div>
+
+                        </div>
+                    </div>
+                    {% else %}
+                    <div style="display: flex;">
+                        <div class="align-fr-copy-two">
+                            <button class="btn btn-volumne" id="speak" onclick="tellResponse(`{{response.output}}`)"><i
+                                    class="fa fa-volume-up" aria-hidden="true"></i>
+                            </button>
+                            <button class="btn" onclick="copyContentsAndMore()">
+                                <i class="fa fa-clone" id="clipboard_icon"></i>
+                                <i class="fa fa-check" id="tick_icon"
+                                    style="display: none;color: #0687ce;border: #0687ce"></i>
+                            </button>
+                        </div>
+                        <div class="button-alignse mt-2 mb-2">
+                            <button class="btn btn-hovers-up" style="font-size: 20px;"
+                                onclick="recordFeedback('positive')"><i class="fa fa-thumbs-up"></i></button>
+                            <button class="btn btn-hovers-down" id="thumbsDownBtn" style="font-size: 20px;"><i
+                                    class="fa fa-thumbs-down"></i></button>
+                        </div>
+                        <div class="thumbs-iup-p text-center" style="display: none;">
+                            <p class="blink">Feedback submitted successfully..!</p>
+                        </div>
+                        <div class="thuumbs-p-sugg " id="thumbsDownDiv" style="display: none;">
+                            <p style="font-weight: bolder;">Why do you choose this rating?</p>
+                            <div class="checkbox-flexing mb-3">
+                                <div class="form-check">
+                                    <label class="form-check-label" style="font-weight: 500;">
+                                        <input class="form-check-input" type="checkbox" id="incorrectSqlCheckbox">
+                                        Incorrect SQL Query
+                                    </label>
+                                </div>
+                                <div class="form-check">
+                                    <label class="form-check-label" style="font-weight: 500;">
+                                        <input class="form-check-input" type="checkbox" id="'otherCheckbox">
+                                        other
+                                    </label>
+                                </div>
+                            </div>
+                            <textarea class="form-control mb-3" id="feedbackComment" placeholder="Feedback"></textarea>
+                            <div class="text-center">
+                                <button class="btn btn-sub" onclick="recordFeedback('Negative')">Submit</button>
+                            </div>
+
+                        </div>
+                    </div>
+                    {% endif %}
+                    {% endif %} -->
+
+
+
+
     <div class="container-fluid">
         <div class="row">
             <div class="col-lg-3"></div>
             <div class="col-lg-5">
-                <!-- ----------------------below_container_user_mode-------------------------------------- -->
                 {% if response and not response['mode'] %}
                 <input type="hidden" id="responseValue" value="{{ response }}">
                 <div class=" response_new" style="margin-top: 5rem;">
@@ -388,6 +451,17 @@
                         </div>
                         <p class="mt-3 copy-content" id="view_sql" style="display:none;">{{ response['sql_query'] |
                             safe }}</p>
+                        {% endif %}
+                        {% if response.output == "Visualization Generated" %}
+                        <!-- <strong>AI Response:<strong>  -->
+                        <!-- <p>AI Response:</p>
+                        <div class="mt-3">
+                            <div id="visuals">
+                                <button class="btn btn-sub"
+                                    onclick="openVisualization('{{ response.chart_filename }}')">Open
+                                    Visualization
+                                </button>
+                            </div>-->
                         <div class="button-alignse mt-2 mb-2">
                             <button class="btn btn-hovers-up" style="font-size: 20px;"
                                 onclick="recordFeedback('Positive')"><i class="fa fa-thumbs-up"></i></button>
@@ -420,108 +494,219 @@
 
                         </div>
                     </div>
+                    {% else %}
+
+                    <!-- <div class="copy-button-aig">
+                             <div> <strong>AI Response:<strong></div>
+                            <p>AI Response:</p>
+                            <div class="align-fr-copy-two">
+                                <button class="btn btn-volumne" id="speak"
+                                    onclick="tellResponse(`{{response.output}}`)"><i class="fa fa-volume-up"
+                                        aria-hidden="true"></i>
+                                </button>
+                                <button class="btn" onclick="copyContentsAndMore()">
+                                    <i class="fa fa-clone" id="clipboard_icon"></i>
+                                    <i class="fa fa-check" id="tick_icon"
+                                        style="display: none;color: #0687ce;border: #0687ce"></i>
+                                </button>
+                            </div>
+
+                        </div>
+                        <div id="response_text">
+                            <div id="res_text">
+                                <strong class="mt-3 copy-contents">{{ response['output'] | safe }}</strong>
+                            </div>
+
+                        </div> -->
+                    <div class="button-alignse mt-2 mb-2">
+                        <button class="btn btn-hovers-up" style="font-size: 20px;"
+                            onclick="recordFeedback('positive')"><i class="fa fa-thumbs-up"></i></button>
+                        <button class="btn btn-hovers-down" id="thumbsDownBtn" style="font-size: 20px;"><i
+                                class="fa fa-thumbs-down"></i></button>
+                    </div>
+                    <div class="thumbs-iup-p text-center" style="display: none;">
+                        <p class="blink">Feedback submitted successfully..!</p>
+                    </div>
+                    <div class="thuumbs-p-sugg " id="thumbsDownDiv" style="display: none;">
+                        <p style="font-weight: bolder;">Why do you choose this rating?</p>
+                        <div class="checkbox-flexing mb-3">
+                            <div class="form-check">
+                                <label class="form-check-label" style="font-weight: 500;">
+                                    <input class="form-check-input" type="checkbox" id="incorrectSqlCheckbox">
+                                    Incorrect SQL Query
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <label class="form-check-label" style="font-weight: 500;">
+                                    <input class="form-check-input" type="checkbox" id="'otherCheckbox">
+                                    other
+                                </label>
+                            </div>
+                        </div>
+                        <textarea class="form-control mb-3" id="feedbackComment" placeholder="Feedback"></textarea>
+                        <div class="text-center">
+                            <button class="btn btn-sub" onclick="recordFeedback('Negative')">Submit</button>
+                        </div>
+
+                    </div>
+
                     {% endif %}
                 </div>
                 {% endif %}
                 <textarea id="response-textarea" class="form-control" rows="10" readonly
                     style="display: none;"> </textarea>
-                {% endif %}
-                <!-- ----------------------below_container_dev_mode-------------------------------------- -->
-
-                {% if response and response['mode'] %}
-                <input type="hidden" id="responseValue" value="{{ response }}">
-                <div class=" response_new" style="margin-top: 5rem;">
-                    {% if response.error_message %}
-                    <div class="mt-3">
-                        <p id="ai_res_txt" style="display: none;">Response:</p>
-                        <strong class="mt-3">{{ response.error_message | safe }}</strong>
-                    </div>
-                    {% else %}
-                    <div class="mt-3" id="response-container">
-                        <div class="copy-button-aig">
-                            <p>{{
-                                "Rephrased User Question:" if
-                                chat_type == "follow_up" else ("User Question:" if chat_type == "new") }}</p>
-                            <button class="btn" onclick="copyContents_ques()">
-                                <i class="fa fa-clone" id="clipboard_icon_ques"></i>
-                                <i class="fa fa-check" id="tick_icon_ques"
-                                    style="display: none;color: #0687ce;border: #0687ce"></i>
-                            </button>
-                        </div>
-                        <strong class="mt-3 copy-content_ques" id="user-ques">{{ response['input'] | safe }}</strong>
-                        {% if response['sql_query'] %}
-                        <div class="copy-button-aig">
-                            <div style="padding-top: 10px; padding-bottom: 15px;">
-                                <button class="btn btn-sub-hide" id="edit-sql-btn"
-                                    style="background-color: grey; color: white;">
-                                    Edit SQL
-                                </button>
-                            </div>
-                            <button class="btn" id="query_copy_icon" onclick="copyContent()" style="display: none;">
-                                <i class="fa fa-clone" id="clipboard_icon_sql"></i>
-                                <i class="fa fa-check" id="tick_icon_sql"
-                                    style="display: none; color: #0b3396;border: #0b3396;"></i>
-                            </button>
-
-                        </div>
-                        <p class="mt-3 copy-content" id="view_sql_for_dev_mode" contenteditable="true">{{
-                            response['sql_query'] |
-                            safe }}</p>
-                        <div style="padding-top: 10px; padding-bottom: 15px;">
-                            <button type="button" class="btn btn-sub-hide" id="gen_ai_res"
-                                style="background-color: grey; color: white;" onclick="handleSubmitGetAI(event)">
-                                Get AI Response
-                            </button>
-                        </div>
-                        <div id="thumbs_icons" style="display: none;">
-                            <div class="button-alignse mt-2 mb-2">
-                                <button class="btn btn-hovers-up" style="font-size: 20px;"
-                                    onclick="recordFeedback('positive')"><i class="fa fa-thumbs-up"></i></button>
-                                <button class="btn btn-hovers-down" id="thumbsDownBtn" style="font-size: 20px;"><i
-                                        class="fa fa-thumbs-down"></i></button>
-                            </div>
-                            <div class="thumbs-iup-p text-center" style="display: none;">
-                                <p class="blink">Feedback submitted successfully..!</p>
-                            </div>
-                            <div class="thuumbs-p-sugg " id="thumbsDownDiv" style="display: none;">
-                                <p style="font-weight: bolder;">Why do you choose this rating?</p>
-                                <div class="checkbox-flexing mb-3">
-                                    <div class="form-check">
-                                        <label class="form-check-label" style="font-weight: 500;">
-                                            <input class="form-check-input" type="checkbox" id="incorrectSqlCheckbox">
-                                            Incorrect SQL Query
-                                        </label>
-                                    </div>
-                                    <div class="form-check">
-                                        <label class="form-check-label" style="font-weight: 500;">
-                                            <input class="form-check-input" type="checkbox" id="'otherCheckbox">
-                                            other
-                                        </label>
-                                    </div>
-                                </div>
-                                <textarea class="form-control mb-3" id="feedbackComment"
-                                    placeholder="Feedback"></textarea>
-                                <div class="text-center">
-                                    <button class="btn btn-sub" onclick="recordFeedback('Negative')">Submit</button>
-                                </div>
-
-                            </div>
-                        </div>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                    <textarea id="response-textarea" class="form-control" rows="10" readonly
-                        style="display: none;"> </textarea>
-                </div>
-                {% endif %}
-
             </div>
+            {% endif %}
         </div>
         <div class="col-lg-4">
         </div>
     </div>
     </div>
+
+
+
     <!-- ------------------------------------------------------------------------------------------------------------------------------------- -->
+    {% if response and response['mode'] %}
+    <input type="hidden" id="responseValue" value="{{ response }}">
+
+    <!-- <div class="mt-5 response_new"> -->
+    <div class="container css-form mt-5">
+        {% if response.error_message %}
+        <div class="mt-3">
+            <p id="ai_res_txt" style="display: none;">AI Response:</p>
+            <strong class="mt-3">{{ response.error_message | safe }}</strong>
+        </div>
+        {% else %}
+        <div class="mt-3" id="response-container">
+            <p>{{
+                "Rephrased User Question:" if
+                chat_type == "follow_up" else ("User Question:" if chat_type == "new") }}</p>
+            <strong class="mt-3 copy-content_ques" id="user-ques">{{ response['input'] | safe }}</strong>
+            {% if response['sql_query'] %}
+            <div class="copy-button-aig">
+                <div style="padding-top: 10px; padding-bottom: 15px;">
+                    <button class="btn btn-sub-hide" id="edit-sql-btn" style="background-color: grey; color: white;">
+                        Edit SQL
+                    </button>
+                </div>
+                <button class="btn" id="query_copy_icon" onclick="copyContent()" style="display: none;">
+                    <i class="fa fa-clone" id="clipboard_icon_sql"></i>
+                    <i class="fa fa-check" id="tick_icon_sql"
+                        style="display: none; color: #0b3396;border: #0b3396;"></i>
+                </button>
+
+            </div>
+            <p class="mt-3 copy-content" id="view_sql_for_dev_mode" contenteditable="true">{{
+                response['sql_query'] |
+                safe }}</p>
+            <div style="padding-top: 10px; padding-bottom: 15px;">
+                <button type="button" class="btn btn-sub-hide" id="gen_ai_res"
+                    style="background-color: grey; color: white;" onclick="handleSubmitGetAI(event)">
+                    Get AI Response
+                </button>
+            </div>
+            {% endif %}
+            {% if response.ai_res == "Visualization Generated" %}
+            <p id="ai_res_txt" style="display: none;">AI Response:</p>
+            <div class="mt-3">
+                <div id="visuals">
+                    <button class="btn btn-sub" onclick="openVisualization('{{ response.chart_filename }}')">Open
+                        Visualization
+                    </button>
+                </div>
+                <div id="thumbs_icons" style="display: none;">
+                    <div class="button-alignse mt-2 mb-2">
+                        <button class="btn btn-hovers-up" style="font-size: 20px;"
+                            onclick="recordFeedback('positive')"><i class="fa fa-thumbs-up"></i></button>
+                        <button class="btn btn-hovers-down" id="thumbsDownBtn" style="font-size: 20px;"><i
+                                class="fa fa-thumbs-down"></i></button>
+                    </div>
+                    <div class="thumbs-iup-p text-center" style="display: none;">
+                        <p class="blink">Feedback submitted successfully..!</p>
+                    </div>
+                    <div class="thuumbs-p-sugg " id="thumbsDownDiv" style="display: none;">
+                        <p style="font-weight: bolder;">Why do you choose this rating?</p>
+                        <div class="checkbox-flexing mb-3">
+                            <div class="form-check">
+                                <label class="form-check-label" style="font-weight: 500;">
+                                    <input class="form-check-input" type="checkbox" id="incorrectSqlCheckbox">
+                                    Incorrect SQL Query
+                                </label>
+                            </div>
+                            <div class="form-check">
+                                <label class="form-check-label" style="font-weight: 500;">
+                                    <input class="form-check-input" type="checkbox" id="'otherCheckbox">
+                                    other
+                                </label>
+                            </div>
+                        </div>
+                        <textarea class="form-control mb-3" id="feedbackComment" placeholder="Feedback"></textarea>
+                        <div class="text-center">
+                            <button class="btn btn-sub" onclick="recordFeedback('Negative')">Submit</button>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+            {%else%}
+            <div class="copy-button-aig">
+                <p id="ai_res_txt" style="display: none;">AI Response:</p>
+                <div class="align-fr-copy-two" id="speaker_copy_icon" style="display: none;">
+                    <button class="btn btn-volumne" id="speak" onclick="tellResponse(`{{response.ai_res}}`)"><i
+                            class="fa fa-volume-up" aria-hidden="true"></i>
+                    </button>
+                    <button class="btn" onclick="copyContentsAndMore()">
+                        <i class="fa fa-clone" id="clipboard_icon"></i>
+                        <i class="fa fa-check" id="tick_icon" style="display: none;color: #0687ce;border: #0687ce"></i>
+                    </button>
+                </div>
+
+            </div>
+            <div id="response_text">
+                <div id="res_text">
+                    <strong class="mt-3 copy-contents">{{ response['ai_res'] | safe }}</strong>
+                </div>
+            </div>
+            <div id="thumbs_icons" style="display: none;">
+                <div class="button-alignse mt-2 mb-2">
+                    <button class="btn btn-hovers-up" style="font-size: 20px;" onclick="recordFeedback('positive')"><i
+                            class="fa fa-thumbs-up"></i></button>
+                    <button class="btn btn-hovers-down" id="thumbsDownBtn" style="font-size: 20px;"><i
+                            class="fa fa-thumbs-down"></i></button>
+                </div>
+                <div class="thumbs-iup-p text-center" style="display: none;">
+                    <p class="blink">Feedback submitted successfully..!</p>
+                </div>
+                <div class="thuumbs-p-sugg " id="thumbsDownDiv" style="display: none;">
+                    <p style="font-weight: bolder;">Why do you choose this rating?</p>
+                    <div class="checkbox-flexing mb-3">
+                        <div class="form-check">
+                            <label class="form-check-label" style="font-weight: 500;">
+                                <input class="form-check-input" type="checkbox" id="incorrectSqlCheckbox">
+                                Incorrect SQL Query
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <label class="form-check-label" style="font-weight: 500;">
+                                <input class="form-check-input" type="checkbox" id="'otherCheckbox">
+                                other
+                            </label>
+                        </div>
+                    </div>
+                    <textarea class="form-control mb-3" id="feedbackComment" placeholder="Feedback"></textarea>
+                    <div class="text-center">
+                        <button class="btn btn-sub" onclick="recordFeedback('Negative')">Submit</button>
+                    </div>
+
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        <textarea id="response-textarea" class="form-control" rows="10" readonly style="display: none;"> </textarea>
+    </div>
+    {% endif %}
 
 
     <script src="https://cdn.sheetjs.com/xlsx-0.17.4/xlsx.full.min.js"></script>
@@ -571,34 +756,26 @@
                 })
                 .then(data => {
                     console.log('Success:', data);
-                    // var aiResponseContainer = document.getElementById('res_text');
-                    var aiResponseContainer = document.getElementById('res_text_side');
+                    var aiResponseContainer = document.getElementById('res_text');
                     var sqlContainer = document.getElementById('view_sql_for_dev_mode');
 
                     if (aiResponseContainer && data.ai_res == 'Visualization Generated') {
                         document.getElementById('ai_res_txt').style.display = 'inline';
                         document.getElementById('thumbs_icons').style.display = 'inline'
-                        document.getElementById('speaker_copy_icon').style.display = 'flex'
-                        //             aiResponseContainer.innerHTML = `
-                        // <div class="mt-3">
-                        //     <div id="visuals">
-                        //         <button class="btn btn-sub" onclick="openVisualization('${data.chart_filename}')">
-                        //             Open Visualization
-                        //         </button>
-                        //     </div>
-                        // </div>`;
                         aiResponseContainer.innerHTML = `
-            <div id="visuals_side_res">
-                                        <iframe id="chartIframe" src="{{ url_for('static', filename='chart.html') }}"
-                                            style="border: #0b3396; width: 100%; height: 100%;"></iframe>
-
-                                    </div>`;
+            <div class="mt-3">
+                <div id="visuals">
+                    <button class="btn btn-sub" onclick="openVisualization('${data.chart_filename}')">
+                        Open Visualization
+                    </button>
+                </div>
+            </div>`;
                         hideLoader()
                     } else if (aiResponseContainer) {
                         document.getElementById('ai_res_txt').style.display = 'inline'
                         document.getElementById('speaker_copy_icon').style.display = 'flex'
                         document.getElementById('thumbs_icons').style.display = 'inline'
-                        aiResponseContainer.innerHTML = '<div id="res_text_side"><strong class="mt-3 copy-contents">' + data.ai_res + '</strong></div>';
+                        aiResponseContainer.innerHTML = '<div id="res_text"><strong class="mt-3 copy-contents">' + data.ai_res + '</strong></div>';
                         hideLoader()
                     }
                     else {
@@ -615,8 +792,7 @@
                 .catch((error) => {
                     console.error('Error:', error);
                     hideLoader();
-                    // var errorMessageContainer = document.getElementById('res_text');
-                    var errorMessageContainer = document.getElementById('res_text_side');
+                    var errorMessageContainer = document.getElementById('res_text');
                     if (errorMessageContainer) {
                         errorMessageContainer.style.display = 'block';
                         errorMessageContainer.innerText = 'An error occurred: ' + error.message;
@@ -789,7 +965,7 @@
             showLoader()
         }
     </script>
-    <!-- <script>
+    <script>
         document.addEventListener('DOMContentLoaded', function () {
             const thumbsDownBtn = document.getElementById('thumbsDownBtn');
             const thumbsDownDiv = document.getElementById('thumbsDownDiv');
@@ -824,17 +1000,14 @@
                 }
 
                 const userQuestion = document.querySelector('#user-ques').innerText;
-                const chat_type = sessionStorage.getItem('chatType');
                 const sqlQueryElement = document.querySelector('.copy-content');
                 const sqlQuery = sqlQueryElement ? sqlQueryElement.innerText : '';
                 const aiResponseElement = document.querySelector('#res_text');
                 const aiResponse = aiResponseElement ? aiResponseElement.innerText : '';
                 const comment = feedback === 'Negative' ? feedbackComment.value : "";
-                
 
                 const feedbackData = {
                     userQuestion: userQuestion,
-                    chat_type : chat_type,
                     sqlQuery: sqlQuery,
                     aiResponse: aiResponse,
                     feedback: feedback,
@@ -859,7 +1032,6 @@
                     });
 
                 console.log("User Question:", userQuestion);
-                console.log("Chat Type:", chat_type);
                 console.log("SQL Query:", sqlQuery);
                 console.log("AI Response:", aiResponse);
                 console.log("Feedback:", feedback);
@@ -883,138 +1055,11 @@
                     recordFeedback('Negative');
                 });
             }
-            const submitButton = document.querySelector('#sbmt_btn button[type="submit"]')
-            if (submitButton) {
-                submitButton.addEventListener('click', function (){
-                        submitData();
-                })
-            }
-            
-            function submitData() {
-                const userQuestion = document.querySelector('#user-ques').innerText;
-                const chat_type = sessionStorage.getItem('chatType');
-                const sqlQueryElement = document.querySelector('.copy-content');
-                const sqlQuery = sqlQueryElement ? sqlQueryElement.innerText : '';
-                // const aiResponseElement = document.querySelector('#res_text');
-                const aiResponseElement = document.querySelector('#res_text_side');
-                const aiResponse = aiResponseElement ? aiResponseElement.innerText : '';
-                
-                const data ={
-                    userQuestion: userQuestion,
-                    chat_type : chat_type,
-                    sqlQuery: sqlQuery,
-                    aiResponse: aiResponse,
-                    feedback: '',
-                    feedbackType: '',
-                    comment: ''
-                }
-                fetch('/record_feedback', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data),
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('Feedback recorded successfully', data);
-                        // showFeedbackSubmittedMessage();
-                    })
-                    .catch((error) => {
-                        console.error('Error recording feedback', error);
-                    });
-            }
         });
-
-    </script> -->
-
-    <script>
-        document.addEventListener('DOMContentLoaded', function () {
-    const thumbsDownBtn = document.getElementById('thumbsDownBtn');
-    const thumbsDownDiv = document.getElementById('thumbsDownDiv');
-    const incorrectSqlCheckbox = document.getElementById('incorrectSqlCheckbox');
-    const otherCheckbox = document.getElementById('otherCheckbox');
-    const feedbackComment = document.getElementById('feedbackComment');
-    const submitFeedbackButton = document.getElementById('submitFeedback');
-    const submitButton = document.querySelector('#sbmt_btn button[type="submit"]');
-
-    function getFeedbackData(feedback) {
-        let feedbackType = "";
-        if (feedback === 'Negative') {
-            if (incorrectSqlCheckbox && otherCheckbox) {
-                if (incorrectSqlCheckbox.checked && otherCheckbox.checked) {
-                    feedbackType = "Incorrect SQL Query & Other";
-                } else if (otherCheckbox.checked) {
-                    feedbackType = "Other";
-                } else if (incorrectSqlCheckbox.checked) {
-                    feedbackType = "Incorrect SQL Query";
-                } else {
-                    feedbackType = 'Other';
-                }
-            } else {
-                feedbackType = 'Other';
-            }
-        }
-
-        return {
-            userQuestion: document.querySelector('#user-ques').innerText,
-            chat_type: sessionStorage.getItem('chatType'),
-            sqlQuery: (document.querySelector('.copy-content') || {}).innerText || '',
-            aiResponse: (document.querySelector('#res_text') || {}).innerText || '',
-            feedback: feedback,
-            feedbackType: feedbackType,
-            comment: feedback === 'Negative' ? feedbackComment.value : ""
-        };
-    }
-
-    function sendFeedbackData(data) {
-        fetch('/record_feedback', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data),
-        })
-        .then(response => response.json())
-        .then(data => {
-            console.log('Feedback recorded successfully', data);
-        })
-        .catch((error) => {
-            console.error('Error recording feedback', error);
-        });
-    }
-
-    function handlePageReload() {
-        const storedData = localStorage.getItem('auditData');
-        if (storedData) {
-            const data = JSON.parse(storedData);
-            sendFeedbackData(data);
-            localStorage.removeItem('auditData');
-        }
-    }
-
-    thumbsDownBtn.addEventListener('click', function () {
-        thumbsDownDiv.style.display = thumbsDownDiv.style.display === 'none' ? 'block' : 'none';
-    });
-
-    if (submitFeedbackButton) {
-        submitFeedbackButton.addEventListener('click', function () {
-            const feedbackData = getFeedbackData('Negative');
-            localStorage.setItem('auditData', JSON.stringify(feedbackData));
-        });
-    }
-
-    if (submitButton) {
-        submitButton.addEventListener('click', function () {
-            const auditData = getFeedbackData('');
-            localStorage.setItem('auditData', JSON.stringify(auditData));
-        });
-    }
-
-    window.addEventListener('load', handlePageReload);
-});
 
     </script>
+
+
     <script>
         const seeSql = document.getElementById('btn_see_sql');
         const sqlRes = document.getElementById('view_sql');

@@ -3,3 +3,5 @@ amazon_redshift.py
 myenv
 .env
 __pycache__
+app.log
+logs.csv

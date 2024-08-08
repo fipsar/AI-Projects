@@ -22,9 +22,29 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import colorsys
+import tiktoken
+import logging
+import logging_config
 
 
 load_dotenv()
+
+def count_tokens(text, encoding_name="cl100k_base"):
+    """
+    Counts the number of tokens in a given text using a specified encoding.
+    Parameters:
+    - text (str): The text to tokenize.
+    - encoding_name (str): The name of the encoding to use (default is "cl100k_base").
+    Returns:
+    - int: The number of tokens in the text.
+    """
+    try:
+        tokenizer = tiktoken.get_encoding(encoding_name)
+        tokens = tokenizer.encode(text)
+        token_count = len(tokens)
+        return token_count
+    except ValueError as e:
+        return f"Error: {e}"
 
 def mysql_connection(query):
     try:
@@ -87,7 +107,7 @@ def connection(query, selected_datasource):
 
 
 
-def get_specific_tables_metadata(connection,selected_datasource, selected_database, schema_name, tables_df, num_samples=2):
+def get_specific_tables_metadata(connection,selected_datasource, selected_database, schema_name, tables_df, num_samples=1):
     metadata = ""
     working_tables = tables_df[tables_df['Flag'] == 1]
     
@@ -202,8 +222,13 @@ Based on the user input you need to anlayze the question and classify its questi
 Do not strictly write the Input question and Instruction in the output. only give the classified question type.
 </instructions>
 """
-
+    input_for_classification = count_tokens(prompt_for_classify_input)
+    # print(input_for_classification,'input_for_classification')
+    logging.info(f"{input_for_classification} - input_for_classification")
     classification = call_openai_gpt(prompt_for_classify_input)
+    output_classification = count_tokens(classification)
+    # print(output_classification,'output_classification')
+    logging.info(f"{output_classification} - output_classification")
     return classification.strip()
 
 # def sql_query_generator(Input, selected_database,selected_datasource,mode):
@@ -361,8 +386,13 @@ def sql_query_generator(Input, selected_database, selected_datasource, mode):
     *Do not create fabricated answers.
     *Respond with only the SQL query.
     """
-    
+    input_token_generated_sql = count_tokens(prompt_sql_data)
+    # print(input_token_generated_sql,'input_token_generated_sql')
+    logging.info(f"{input_token_generated_sql} - input_token_generated_sql")
     generated_sql = call_openai_gpt(prompt_sql_data)
+    output_token_generated_sql = count_tokens(generated_sql)
+    # print(output_token_generated_sql,'output_token_generated_sql')
+    logging.info(f"{output_token_generated_sql} - output_token_generated_sql")
     cleaned_sql = generated_sql.replace("<SQL>", "").replace("</SQL>", "").strip()
 
     if f"{schema_name}." not in cleaned_sql:
@@ -380,7 +410,7 @@ def sql_query_generator(Input, selected_database, selected_datasource, mode):
         return query, results, col_name, mode
     elif mode == 'developer_mode':
         print('Sql_query_generator_for_dev_mode')
-        return query
+        return query,col_name
 
 def extract_column_names(query):
     col_name = []
@@ -439,7 +469,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%;  margin: auto;">
+                        <div style="width: 75%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -528,7 +558,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; margin: auto;">
+                        <div style="width: 75%;display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -608,7 +638,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 </head>
                 <body>
-                    <div style="width: 75%; margin: auto;">
+                    <div style="width: 75%; margin: auto; display: ruby-text;">
                         <canvas id="myChart"></canvas>
                     </div>
                     <script>
@@ -701,7 +731,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 45%; margin: auto;">
+                        <div style="width: 50%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -781,7 +811,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 45%; margin: auto;">
+                        <div style="width: 50%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -853,7 +883,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 </head>
                 <body>
-                    <div style="width: 45%; margin: auto;">
+                    <div style="width: 50%; display: ruby-text; margin: auto;">
                         <canvas id="myChart"></canvas>
                     </div>
                     <script>
@@ -938,7 +968,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; height: 500px; margin: auto;">
+                        <div style="width: 85%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -1043,7 +1073,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; height: 500px; margin: auto;">
+                        <div style="width: 85%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -1142,7 +1172,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 </head>
                 <body>
-                    <div style="width: 75%; height: 500px; margin: auto;">
+                    <div style="width: 85%; display: ruby-text; margin: auto;">
                         <canvas id="myChart"></canvas>
                     </div>
                     <script>
@@ -1260,7 +1290,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; margin: auto;">
+                        <div style="width: 85%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -1343,7 +1373,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; margin: auto;">
+                        <div style="width: 85%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -1417,7 +1447,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 </head>
                 <body>
-                    <div style="width: 75%; margin: auto;">
+                    <div style="width: 85%; display: ruby-text; margin: auto;">
                         <canvas id="myChart"></canvas>
                     </div>
                     <script>
@@ -1504,7 +1534,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; margin: auto;">
+                        <div style="width: 85%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -1584,7 +1614,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; margin: auto;">
+                        <div style="width: 85%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -1658,7 +1688,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 </head>
                 <body>
-                    <div style="width: 75%; margin: auto;">
+                    <div style="width: 85%; display: ruby-text; margin: auto;">
                         <canvas id="myChart"></canvas>
                     </div>
                     <script>
@@ -1745,7 +1775,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; margin: auto;">
+                        <div style="width: 85%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -1825,7 +1855,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; margin: auto;">
+                        <div style="width: 85%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -1901,7 +1931,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 </head>
                 <body>
-                    <div style="width: 75%; margin: auto;">
+                    <div style="width: 85%; display: ruby-text; margin: auto;">
                         <canvas id="myChart"></canvas>
                     </div>
                     <script>
@@ -1989,7 +2019,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; margin: auto;">
+                        <div style="width: 85%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -2070,7 +2100,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                     </head>
                     <body>
-                        <div style="width: 75%; margin: auto;">
+                        <div style="width: 85%; display: ruby-text; margin: auto;">
                             <canvas id="myChart"></canvas>
                         </div>
                         <script>
@@ -2146,7 +2176,7 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
                     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
                 </head>
                 <body>
-                    <div style="width: 75%; margin: auto;">
+                    <div style="width: 85%; display: ruby-text; margin: auto;">
                         <canvas id="myChart"></canvas>
                     </div>
                     <script>
@@ -2238,8 +2268,8 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
         
         elif mode == 'developer_mode':
             print('Final_resut_dev_mode_for_visual')
-            sql_query = sql_query_generator(Input,selected_database,selected_datasource,mode)
-            return sql_query, mode
+            sql_query,col_name = sql_query_generator(Input,selected_database,selected_datasource,mode)
+            return sql_query, col_name,mode
             
     elif any(word in classification.lower() for word in ['table']):
         if mode == 'user_mode':
@@ -2249,8 +2279,8 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
             return sql_query, d_f, None, selected_database,selected_datasource, mode
         elif mode == 'developer_mode':
             print('Final_resut_dev_mode_for_table')
-            sql_query = sql_query_generator(Input,selected_database,selected_datasource,mode)
-            return sql_query, mode
+            sql_query, col_name = sql_query_generator(Input,selected_database,selected_datasource,mode)
+            return sql_query, col_name,mode
     
     else:
         if mode == 'user_mode':
@@ -2298,11 +2328,18 @@ def final_result(classification, Input,selected_database,selected_datasource,mod
 
     You should only give the {'Your Response'} part. Don't give any other comments in the response.
     """
+            input_token_nl_response_user_mode = count_tokens(prompt_1)
+            # print(input_token_nl_response_user_mode,'input_token_nl_response_user_mode')
+            logging.info(f"{input_token_nl_response_user_mode} - input_token_nl_response_user_mode")
             nl_response = call_openai_gpt(prompt_1)
+            output_token_nl_response_user_mode = count_tokens(nl_response)
+            # print(output_token_nl_response_user_mode,'output_token_nl_response_user_mode')
+            logging.info(f"{output_token_nl_response_user_mode} - output_token_nl_response_user_mode")
+
 
             return sql_query, nl_response, None, selected_database, selected_datasource, mode
         elif mode == 'developer_mode':
             print('Final_resut_dev_mode_for_NL')
-            sql_query = sql_query_generator(Input,selected_database,selected_datasource,mode)
+            sql_query,col_name = sql_query_generator(Input,selected_database,selected_datasource,mode)
 
-            return sql_query, mode
+            return sql_query,col_name, mode

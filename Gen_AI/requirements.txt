@@ -18,3 +18,5 @@ python-dotenv
 flask_mysqldb
 plotly
 psycopg2
+tiktoken
+openpyxl

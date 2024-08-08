@@ -1,5 +1,5 @@
 from flask import Flask, request, render_template, jsonify, url_for, session, redirect, abort
-from scripts import question_classification, final_result,call_openai_gpt
+from scripts import question_classification, final_result,call_openai_gpt,count_tokens
 from datetime import datetime
 import pandas as pd
 import csv
@@ -7,16 +7,16 @@ import os
 import copy
 import os
 from scripts_for_edited_sql import ai_result
+import logging
+import logging_config
 
 
 app = Flask(__name__)
 app.secret_key = 'fipsar'
-app.config['SESSION_COOKIE_SECURE'] = True
-app.config['SESSION_COOKIE_HTTPONLY'] = True
-app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+
 users = {
-    'rdb_user': 'rdb@mrck2024',
-    'rdb_test': 'rdb@mrck2024'
+    'rdb_user': 'fipsar@123',
+    'rdb_test': 'fipsar@456'
 }
 
 selected_database = ''
@@ -48,8 +48,13 @@ Rephrased Question : Which doctor prescribed this for the patient Cris ?.
 Chat History: {chat_history}
 </chat_history>
 """
-    
+    input_token_combine_question_for_followup = count_tokens(prompt_for_followup)
+    # print(input_token_combine_question_for_followup,'input_token_combine_question_for_followup')
+    logging.info(f"{input_token_combine_question_for_followup} - input_token_combine_question_for_followup")
     question_response = call_openai_gpt(prompt_for_followup)
+    output_token_question_classification = count_tokens(question_response)
+    # print(output_token_question_classification,'output_token_question_classification')
+    logging.info(f"{output_token_question_classification} - output_token_question_classification")
     return question_response.strip()
 
 def handle_follow_up_question(chat_history,selected_database,selected_datasource, mode):
@@ -61,7 +66,8 @@ def handle_follow_up_question(chat_history,selected_database,selected_datasource
                                                                                             selected_datasource,mode)
 
         if isinstance(output, pd.DataFrame):
-            output = output.to_html(index=False, header=False)
+            output.insert(0, 'S.No', range(1, len(output) + 1))
+            output = output.to_html(index=False, header=True)
             print(sql_query)
             print(output)
 
@@ -79,7 +85,7 @@ def handle_follow_up_question(chat_history,selected_database,selected_datasource
         return response
     elif mode == 'developer_mode':
         print('handling_followup_for_dev_mode_condition')
-        sql_query, mode = final_result(classification_for_follow_up, chat_history,selected_database,selected_datasource,mode)
+        sql_query,col_name, mode = final_result(classification_for_follow_up, chat_history,selected_database,selected_datasource,mode)
         print(sql_query)
              
         response = {'input':chat_history, "sql_query":sql_query, 'mode':mode}
@@ -93,7 +99,8 @@ def handle_new_question(chat_history,selected_database,selected_datasource,mode)
         sql_query, output, visualization_data,database,datasource,mode_type  = final_result(classification, chat_history[0],
                                                                                             selected_database,selected_datasource,mode)
         if isinstance(output, pd.DataFrame):
-            output = output.to_html(index=False, header=False)
+            output.insert(0, 'S.No', range(1, len(output) + 1))
+            output = output.to_html(index=False, header=True)
             print(sql_query)
             print(output)
         if visualization_data is not None:
@@ -111,7 +118,7 @@ def handle_new_question(chat_history,selected_database,selected_datasource,mode)
     
     elif mode == 'developer_mode':
         print('handling_new_ques_for_dev_mode_condition')
-        sql_query, mode = final_result(classification, chat_history[0],selected_database,selected_datasource,mode)
+        sql_query,col_name, mode = final_result(classification, chat_history[0],selected_database,selected_datasource,mode)
         print(sql_query)
              
         response = {'input':chat_history[0], "sql_query":sql_query, 'mode':mode}
@@ -143,7 +150,8 @@ def handle_follow_up_question_gen_ai(chat_history, edited_sql, selected_database
                                                                              selected_datasource, selected_database, mode)
 
     if isinstance(ai_res, pd.DataFrame):
-        ai_res = ai_res.to_html(index=False, header=False)
+        ai_res.insert(0, 'S.No', range(1, len(ai_res) + 1))
+        ai_res = ai_res.to_html(index=False, header=True)
         print(ai_res)
 
     if visualization_data is not None:
@@ -332,17 +340,17 @@ def record_feedback():
     
     user_question = feedback_data['userQuestion']
     response_type = classify
+    chat_type = feedback_data['chat_type']
     sql_query = feedback_data['sqlQuery']
     ai_response =feedback_data['aiResponse']
     feedback = feedback_data['feedback']
     feedback_type = feedback_data['feedbackType']
     comment = feedback_data['comment']
-
     current_datetime = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     user_info = ''
 
-    with open('feedback.csv','a',newline='') as csvfile:
-        fieldnames = ['Date','User Info', 'User Question', 'Response Type', 'SQL Query', 'AI Response', 'Feedback', 'Feedback Type', 'Comment']
+    with open('audit_data.csv','a',newline='') as csvfile:
+        fieldnames = ['Date','User Info', 'User Question','Chat Type' ,'Response Type', 'SQL Query', 'AI Response', 'Feedback', 'Feedback Type', 'Comment']
         writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
 
         if csvfile.tell() == 0:
@@ -351,6 +359,7 @@ def record_feedback():
             'Date': current_datetime,
             'User Info': user_info,
             'User Question': user_question,
+            'Chat Type':chat_type,
             'Response Type' : response_type,
             'SQL Query' : sql_query,
             'AI Response' : ai_response,
